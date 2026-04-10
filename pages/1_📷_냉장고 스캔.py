@@ -22,7 +22,6 @@ uploaded_files = st.file_uploader(
     "냉장고 사진 업로드 (여러 장 가능)",
     type=["jpg", "jpeg", "png"],
     accept_multiple_files=True,
-    label_visibility="collapsed",
 )
 
 if uploaded_files:

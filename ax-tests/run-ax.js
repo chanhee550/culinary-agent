@@ -9,12 +9,12 @@ const REPORT_DIR = path.join(__dirname, "reports");
 // Streamlit 페이지 목록
 const PAGES = [
   { name: "메인 페이지", path: "/" },
-  { name: "냉장고 스캔", path: "/fridge_scan" },
-  { name: "재료 관리", path: "/ingredients" },
-  { name: "레시피 추천", path: "/recipes" },
-  { name: "프로필 설정", path: "/profile" },
-  { name: "저장된 레시피", path: "/saved_recipes" },
-  { name: "장보기 목록", path: "/shopping" },
+  { name: "냉장고 스캔", path: "/%F0%9F%93%B7_%EB%83%89%EC%9E%A5%EA%B3%A0_%EC%8A%A4%EC%BA%94" },
+  { name: "재료 관리", path: "/%F0%9F%A5%AC_%EC%9E%AC%EB%A3%8C_%EA%B4%80%EB%A6%AC" },
+  { name: "레시피 추천", path: "/%F0%9F%8D%BD%EF%B8%8F_%EB%A0%88%EC%8B%9C%ED%94%BC_%EC%B6%94%EC%B2%9C" },
+  { name: "프로필 설정", path: "/%F0%9F%91%A4_%ED%94%84%EB%A1%9C%ED%95%84_%EC%84%A4%EC%A0%95" },
+  { name: "저장된 레시피", path: "/%F0%9F%93%9A_%EC%A0%80%EC%9E%A5_%EB%A0%88%EC%8B%9C%ED%94%BC" },
+  { name: "장보기 목록", path: "/%F0%9F%9B%92_%EC%9E%A5%EB%B3%B4%EA%B8%B0_%EB%AA%A9%EB%A1%9D" },
 ];
 
 async function waitForStreamlit(page) {

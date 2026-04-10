@@ -10,12 +10,24 @@ def apply_global_styles():
     /* ===== Global Font & Base ===== */
     html, body,
     h1, h2, h3, h4, h5, h6,
-    p, span, div, a, li, td, th, label, input, textarea, select, button,
+    p, a, li, td, th, label, input, textarea, select, button,
     .stMarkdown, .stText, .stCaption,
-    [data-testid="stSidebar"],
+    .stMarkdown p, .stMarkdown span, .stMarkdown li,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] span:not([class*="icon"]):not([data-testid]),
     [data-testid="stMetricValue"],
-    [data-testid="stMetricLabel"] {
+    [data-testid="stMetricLabel"],
+    [data-testid="stForm"] {
         font-family: 'Noto Sans KR', sans-serif !important;
+    }
+
+    /* ===== Preserve icon fonts ===== */
+    [data-testid="stSidebarCollapseButton"] span,
+    [data-testid="stExpanderToggleIcon"],
+    .material-symbols-rounded,
+    [class*="icon"],
+    [data-testid="stBaseButton-headerNoPadding"] span {
+        font-family: 'Material Symbols Rounded', sans-serif !important;
     }
 
     /* ===== Remove all borders & outlines ===== */
@@ -282,6 +294,109 @@ def apply_global_styles():
             max-width: 960px !important;
             padding: 2rem 1.5rem !important;
         }
+    }
+
+    /* ===== Dark Mode ===== */
+    @media (prefers-color-scheme: dark) {
+        h1 { color: #f0f0f0 !important; }
+        h2, .stHeader { color: #e0e0e0 !important; }
+        h3 { color: #d0d0d0 !important; }
+
+        div[data-testid="stMetric"] {
+            background: #1e1e1e !important;
+            box-shadow: 0 1px 4px rgba(255,255,255,0.06) !important;
+        }
+        div[data-testid="stMetric"] label { color: #aaa !important; }
+        div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #f0f0f0 !important; }
+
+        section[data-testid="stSidebar"] {
+            background: #161616 !important;
+        }
+
+        div[data-testid="stExpander"] {
+            background: #1e1e1e !important;
+            box-shadow: 0 1px 4px rgba(255,255,255,0.04) !important;
+        }
+
+        div[data-testid="stForm"] {
+            background: #1a1a1a !important;
+        }
+
+        .stTextInput > div > div > input,
+        .stSelectbox > div > div > div,
+        .stNumberInput > div > div > input {
+            border-bottom: 2px solid #444 !important;
+            color: #e0e0e0 !important;
+        }
+
+        .stButton > button[kind="secondary"],
+        .stButton > button:not([kind="primary"]) {
+            background: #2a2a2a !important;
+            color: #e0e0e0 !important;
+        }
+        .stButton > button[kind="secondary"]:hover,
+        .stButton > button:not([kind="primary"]):hover {
+            background: #333 !important;
+        }
+
+        div[data-testid="stFileUploader"] > div {
+            border-color: #444 !important;
+            background: #1a1a1a !important;
+        }
+
+        hr {
+            border-top: 1px solid #333 !important;
+        }
+    }
+
+    /* Streamlit dark theme override */
+    [data-theme="dark"] h1,
+    .stApp[data-theme="dark"] h1 { color: #f0f0f0 !important; }
+    [data-theme="dark"] h2,
+    .stApp[data-theme="dark"] h2 { color: #e0e0e0 !important; }
+    [data-theme="dark"] h3,
+    .stApp[data-theme="dark"] h3 { color: #d0d0d0 !important; }
+
+    [data-theme="dark"] div[data-testid="stMetric"] {
+        background: #1e1e1e !important;
+        box-shadow: 0 1px 4px rgba(255,255,255,0.06) !important;
+    }
+    [data-theme="dark"] div[data-testid="stMetric"] label { color: #aaa !important; }
+    [data-theme="dark"] div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #f0f0f0 !important; }
+
+    [data-theme="dark"] section[data-testid="stSidebar"] {
+        background: #161616 !important;
+    }
+
+    [data-theme="dark"] div[data-testid="stExpander"] {
+        background: #1e1e1e !important;
+        box-shadow: 0 1px 4px rgba(255,255,255,0.04) !important;
+    }
+
+    [data-theme="dark"] div[data-testid="stForm"] {
+        background: #1a1a1a !important;
+    }
+
+    [data-theme="dark"] .stTextInput > div > div > input,
+    [data-theme="dark"] .stSelectbox > div > div > div,
+    [data-theme="dark"] .stNumberInput > div > div > input {
+        border-bottom: 2px solid #444 !important;
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] .stButton > button[kind="secondary"],
+    [data-theme="dark"] .stButton > button:not([kind="primary"]) {
+        background: #2a2a2a !important;
+        color: #e0e0e0 !important;
+    }
+
+    [data-theme="dark"] div[data-testid="stFileUploader"] > div {
+        border-color: #444 !important;
+        background: #1a1a1a !important;
+    }
+
+    [data-theme="dark"] hr {
+        border-top: 1px solid #333 !important;
     }
     </style>
     """, unsafe_allow_html=True)
