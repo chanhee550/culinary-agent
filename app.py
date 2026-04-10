@@ -82,31 +82,39 @@ st.sidebar.markdown("---")
 st.title(t("app_title"))
 st.markdown(t("app_subtitle"))
 
+# 카드 버튼 스타일
+st.markdown("""
+<style>
+div.stButton > button {
+    min-height: 80px !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+    white-space: pre-line !important;
+    text-align: left !important;
+    padding: 1rem !important;
+    border-radius: 16px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 cards = [
-    ("📷", "fridge_scan", "fridge_scan_desc", "#fff5f5"),
-    ("🥬", "ingredients", "ingredients_desc", "#f0f7ff"),
-    ("🍽️", "recipes", "recipes_desc", "#f0fff4"),
-    ("📚", "saved_recipes", "saved_recipes_desc", "#fff8f0"),
-    ("🛒", "shopping", "shopping_desc", "#f5f0ff"),
-    ("👤", "profile", "profile_desc", "#f0f0f0"),
+    ("📷", "fridge_scan", "fridge_scan_desc", "1_📷_냉장고 스캔"),
+    ("🥬", "ingredients", "ingredients_desc", "2_🥬_재료 관리"),
+    ("🍽️", "recipes", "recipes_desc", "3_🍽️_레시피 추천"),
+    ("📚", "saved_recipes", "saved_recipes_desc", "5_📚_저장 레시피"),
+    ("🛒", "shopping", "shopping_desc", "6_🛒_장보기 목록"),
+    ("👤", "profile", "profile_desc", "4_👤_프로필 설정"),
 ]
 
-cards_html = ""
-for icon, title_key, desc_key, bg in cards:
-    cards_html += (
-        f'<div style="flex:1 1 calc(33% - 0.7rem); min-width:140px; background:{bg};'
-        f' border-radius:16px; padding:1rem 1.2rem; box-sizing:border-box;">'
-        f'<div style="font-size:1.3rem; margin-bottom:0.2rem;">{icon}</div>'
-        f'<div style="font-weight:600; font-size:0.9rem; margin-bottom:0.2rem;">{t(title_key)}</div>'
-        f'<div style="font-size:0.78rem; color:#555;">{t(desc_key)}</div>'
-        f'</div>'
-    )
-
-st.markdown(
-    f'<div style="display:flex; flex-wrap:wrap; gap:0.6rem; margin:1rem 0; font-family:\'Noto Sans KR\',sans-serif;">'
-    f'{cards_html}</div>',
-    unsafe_allow_html=True,
-)
+col1, col2 = st.columns(2)
+for i, (icon, title_key, desc_key, page_name) in enumerate(cards):
+    with (col1 if i % 2 == 0 else col2):
+        if st.button(
+            f"{icon} {t(title_key)}\n{t(desc_key)}",
+            key=f"card_{i}",
+            use_container_width=True,
+        ):
+            st.switch_page(f"pages/{page_name}.py")
 
 # --- 사이드바 대시보드 ---
 ingredients = get_all_ingredients()
