@@ -4,11 +4,13 @@ import streamlit as st
 from db.database import init_db
 from db.repository import upsert_ingredients
 from services.vision import analyze_multiple_images
+from styles import apply_global_styles
 
 init_db()
+apply_global_styles()
 
-st.header("냉장고 스캔")
-st.markdown("냉장고 사진을 업로드하면 재료를 자동으로 인식합니다.")
+st.header("📷 냉장고 스캔")
+st.caption("냉장고 사진을 업로드하면 AI가 재료를 자동으로 인식합니다.")
 
 # API 키 확인
 if not os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY") == "your_api_key_here":
@@ -20,6 +22,7 @@ uploaded_files = st.file_uploader(
     "냉장고 사진 업로드 (여러 장 가능)",
     type=["jpg", "jpeg", "png"],
     accept_multiple_files=True,
+    label_visibility="collapsed",
 )
 
 if uploaded_files:
@@ -29,7 +32,7 @@ if uploaded_files:
         with cols[i % 3]:
             st.image(f, caption=f.name, use_container_width=True)
 
-    # 스캔 버튼
+    st.markdown("")
     if st.button("재료 스캔 시작", type="primary", use_container_width=True):
         images = []
         for f in uploaded_files:
@@ -47,19 +50,23 @@ if uploaded_files:
             st.warning("감지된 재료가 없습니다. 다른 사진을 시도해보세요.")
             st.stop()
 
-        # 세션에 저장하여 체크리스트 표시
         st.session_state["detected_ingredients"] = detected
 
 # 감지 결과 체크리스트
 if "detected_ingredients" in st.session_state:
     detected = st.session_state["detected_ingredients"]
-    st.subheader(f"감지된 재료 ({len(detected)}개)")
-    st.markdown("저장하지 않을 재료는 체크를 해제하세요.")
+
+    st.markdown(f"""
+    <div style="background:#f0fff4; border-radius:12px; padding:0.8rem 1rem; margin:1rem 0; font-family:'Noto Sans KR',sans-serif;">
+        <span style="font-weight:600;">감지된 재료 {len(detected)}개</span>
+        <span style="font-size:0.85rem; color:#555;"> — 저장하지 않을 재료는 체크를 해제하세요</span>
+    </div>
+    """, unsafe_allow_html=True)
 
     selected = []
     for i, item in enumerate(detected):
         checked = st.checkbox(
-            f"{item['name']} ({item.get('category', '기타')})",
+            f"{item['name']}  `{item.get('category', '기타')}`",
             value=True,
             key=f"check_{i}",
         )

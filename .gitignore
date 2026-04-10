@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 data/culinary.db
 .streamlit/
+
+# Node.js
+ax-tests/node_modules/
+ax-tests/reports/

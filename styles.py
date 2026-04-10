@@ -1,0 +1,287 @@
+import streamlit as st
+
+
+def apply_global_styles():
+    st.markdown("""
+    <style>
+    /* ===== Import Google Font ===== */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+
+    /* ===== Global Font & Base ===== */
+    html, body,
+    h1, h2, h3, h4, h5, h6,
+    p, span, div, a, li, td, th, label, input, textarea, select, button,
+    .stMarkdown, .stText, .stCaption,
+    [data-testid="stSidebar"],
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricLabel"] {
+        font-family: 'Noto Sans KR', sans-serif !important;
+    }
+
+    /* ===== Remove all borders & outlines ===== */
+    .stTextInput > div > div,
+    .stSelectbox > div > div,
+    .stMultiSelect > div > div,
+    .stNumberInput > div > div,
+    .stSlider > div,
+    .stFileUploader > div,
+    div[data-testid="stForm"],
+    div[data-testid="stExpander"],
+    .stCheckbox,
+    section[data-testid="stSidebar"],
+    div[data-testid="stMetric"],
+    div[data-testid="stDataFrame"] {
+        border: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    /* ===== Input fields uniform style ===== */
+    .stTextInput > div > div > input,
+    .stSelectbox > div > div > div,
+    .stNumberInput > div > div > input {
+        border: none !important;
+        border-bottom: 2px solid #e0e0e0 !important;
+        border-radius: 0 !important;
+        padding: 0.6rem 0.4rem !important;
+        font-size: 0.95rem !important;
+        background: transparent !important;
+        transition: border-color 0.2s ease;
+    }
+
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus {
+        border-bottom: 2px solid #ff6b6b !important;
+        box-shadow: none !important;
+    }
+
+    /* ===== Buttons ===== */
+    .stButton > button {
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 0.6rem 1.6rem !important;
+        font-size: 0.9rem !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.02em !important;
+        transition: all 0.2s ease !important;
+        box-shadow: none !important;
+    }
+
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #ff6b6b, #ff8e53) !important;
+        color: white !important;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3) !important;
+    }
+
+    .stButton > button[kind="secondary"],
+    .stButton > button:not([kind="primary"]) {
+        background: #f5f5f5 !important;
+        color: #333 !important;
+    }
+
+    .stButton > button[kind="secondary"]:hover,
+    .stButton > button:not([kind="primary"]):hover {
+        background: #ebebeb !important;
+    }
+
+    /* ===== Sidebar ===== */
+    section[data-testid="stSidebar"] {
+        background: #fafafa !important;
+        border-right: none !important;
+    }
+
+    section[data-testid="stSidebar"] .stMarkdown {
+        font-size: 0.88rem !important;
+    }
+
+    /* ===== Metric cards ===== */
+    div[data-testid="stMetric"] {
+        background: #fff !important;
+        padding: 1rem 1.2rem !important;
+        border-radius: 16px !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+    }
+
+    div[data-testid="stMetric"] label {
+        font-size: 0.82rem !important;
+        font-weight: 400 !important;
+        color: #595959 !important;
+    }
+
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+        font-size: 1.6rem !important;
+        font-weight: 700 !important;
+        color: #333 !important;
+    }
+
+    /* ===== Expander ===== */
+    div[data-testid="stExpander"] {
+        background: #fff !important;
+        border-radius: 16px !important;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+        margin-bottom: 0.8rem !important;
+        overflow: hidden !important;
+    }
+
+    div[data-testid="stExpander"] summary {
+        font-weight: 500 !important;
+        font-size: 0.95rem !important;
+        padding: 0.8rem 1rem !important;
+    }
+
+    /* ===== File Uploader ===== */
+    div[data-testid="stFileUploader"] > div {
+        border: 2px dashed #ddd !important;
+        border-radius: 16px !important;
+        background: #fafafa !important;
+        padding: 2rem !important;
+        transition: border-color 0.2s ease;
+    }
+
+    div[data-testid="stFileUploader"] > div:hover {
+        border-color: #ff6b6b !important;
+    }
+
+    /* ===== Checkbox ===== */
+    .stCheckbox label {
+        font-size: 0.92rem !important;
+        font-weight: 400 !important;
+    }
+
+    /* ===== Headers ===== */
+    h1 {
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
+        color: #222 !important;
+        margin-bottom: 0.2rem !important;
+    }
+
+    h2, .stHeader {
+        font-size: 1.4rem !important;
+        font-weight: 600 !important;
+        color: #333 !important;
+    }
+
+    h3 {
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+        color: #444 !important;
+    }
+
+    /* ===== Form ===== */
+    div[data-testid="stForm"] {
+        background: #fafafa !important;
+        border-radius: 16px !important;
+        padding: 1.2rem !important;
+    }
+
+    /* ===== Alert boxes ===== */
+    .stAlert {
+        border: none !important;
+        border-radius: 12px !important;
+        font-size: 0.9rem !important;
+    }
+
+    /* ===== Spinner ===== */
+    .stSpinner > div {
+        border-color: #ff6b6b transparent transparent transparent !important;
+    }
+
+    /* ===== Slider ===== */
+    div[data-testid="stSlider"] [data-testid="stThumbValue"] {
+        color: #ff6b6b !important;
+    }
+
+    /* ===== Divider ===== */
+    hr {
+        border: none !important;
+        border-top: 1px solid #eee !important;
+        margin: 1.5rem 0 !important;
+    }
+
+    /* ===== Image (fridge scan preview) ===== */
+    .stImage {
+        border-radius: 12px !important;
+        overflow: hidden !important;
+    }
+
+    /* ===== Mobile Responsive ===== */
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding: 1rem 0.8rem !important;
+        }
+
+        h1 {
+            font-size: 1.4rem !important;
+        }
+
+        h2, .stHeader {
+            font-size: 1.15rem !important;
+        }
+
+        h3 {
+            font-size: 1rem !important;
+        }
+
+        .stButton > button {
+            width: 100% !important;
+            padding: 0.7rem 1rem !important;
+            font-size: 0.95rem !important;
+        }
+
+        div[data-testid="stMetric"] {
+            padding: 0.8rem !important;
+        }
+
+        div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+            font-size: 1.3rem !important;
+        }
+
+        div[data-testid="stForm"] {
+            padding: 0.8rem !important;
+        }
+
+        div[data-testid="stExpander"] summary {
+            font-size: 0.88rem !important;
+        }
+
+        section[data-testid="stSidebar"] {
+            min-width: 0 !important;
+            width: 260px !important;
+        }
+
+        /* Stack columns vertically on mobile */
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+        }
+
+        div[data-testid="stHorizontalBlock"] > div {
+            flex: 1 1 100% !important;
+            min-width: 100% !important;
+        }
+    }
+
+    /* ===== Tablet ===== */
+    @media (min-width: 769px) and (max-width: 1024px) {
+        .main .block-container {
+            padding: 1.5rem 1.2rem !important;
+        }
+
+        div[data-testid="stHorizontalBlock"] > div {
+            min-width: 45% !important;
+        }
+    }
+
+    /* ===== Desktop padding ===== */
+    @media (min-width: 1025px) {
+        .main .block-container {
+            max-width: 960px !important;
+            padding: 2rem 1.5rem !important;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)

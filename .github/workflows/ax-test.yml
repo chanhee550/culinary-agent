@@ -1,0 +1,56 @@
+name: Accessibility (AX) Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  ax-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create .env (dummy for CI)
+        run: echo "ANTHROPIC_API_KEY=test" > .env
+
+      - name: Start Streamlit server
+        run: |
+          streamlit run app.py --server.headless true --server.port 8501 &
+          sleep 10
+
+      - name: Install AX test dependencies
+        working-directory: ax-tests
+        run: npm install
+
+      - name: Install Playwright browsers
+        working-directory: ax-tests
+        run: npx playwright install chromium --with-deps
+
+      - name: Run AX tests
+        working-directory: ax-tests
+        run: node run-ax.js || true
+
+      - name: Upload AX report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ax-report
+          path: ax-tests/reports/
