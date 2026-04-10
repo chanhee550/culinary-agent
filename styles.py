@@ -435,5 +435,94 @@ def apply_global_styles():
     [data-theme="dark"] hr {
         border-top: 1px solid #333 !important;
     }
+
+    /* ===== Dark Mode: inline HTML overrides ===== */
+    /* All inline div/span text inside markdown */
+    @media (prefers-color-scheme: dark) {
+        .stMarkdown div[style], .stMarkdown span[style] {
+            color: #e0e0e0 !important;
+        }
+        .stMarkdown div[style*="background:#f0f0f0"],
+        .stMarkdown span[style*="background:#f0f0f0"] {
+            background: #333 !important;
+            color: #e0e0e0 !important;
+        }
+        .stMarkdown div[style*="background:#f5f5f5"],
+        .stMarkdown span[style*="background:#f5f5f5"] {
+            background: #333 !important;
+            color: #e0e0e0 !important;
+        }
+        .stMarkdown div[style*="background:#f8f9fa"] {
+            background: #2a2a2a !important;
+            color: #e0e0e0 !important;
+        }
+        .stMarkdown div[style*="background:#f0fff4"] {
+            background: #1a2a1d !important;
+            color: #e0e0e0 !important;
+        }
+        .stMarkdown div[style*="background:#fff5f5"] {
+            background: #2a1a1a !important;
+            color: #e0e0e0 !important;
+        }
+        .stMarkdown div[style*="background:#f0f7ff"] {
+            background: #1a1f2a !important;
+            color: #e0e0e0 !important;
+        }
+        .stMarkdown div[style*="background:#fff8f0"] {
+            background: #2a241a !important;
+            color: #e0e0e0 !important;
+        }
+        .stMarkdown div[style*="background:#f5f0ff"] {
+            background: #211a2a !important;
+            color: #e0e0e0 !important;
+        }
+        .stMarkdown div[style*="background:#f0f0f0"] {
+            background: #222 !important;
+            color: #e0e0e0 !important;
+        }
+        /* Preserve semantic colors but brighten for dark bg */
+        .stMarkdown div[style*="color:#e53e3e"] { color: #ff6b6b !important; }
+        .stMarkdown div[style*="color:#e6a700"] { color: #ffd43b !important; }
+        .stMarkdown div[style*="color:#38a169"] { color: #68d391 !important; }
+        .stMarkdown span[style*="color:#e53e3e"] { color: #ff6b6b !important; }
+    }
+
+    [data-theme="dark"] .stMarkdown div[style],
+    [data-theme="dark"] .stMarkdown span[style] {
+        color: #e0e0e0 !important;
+    }
+    [data-theme="dark"] .stMarkdown div[style*="background:#f0f0f0"],
+    [data-theme="dark"] .stMarkdown span[style*="background:#f0f0f0"] {
+        background: #333 !important; color: #e0e0e0 !important;
+    }
+    [data-theme="dark"] .stMarkdown div[style*="background:#f5f5f5"],
+    [data-theme="dark"] .stMarkdown span[style*="background:#f5f5f5"] {
+        background: #333 !important; color: #e0e0e0 !important;
+    }
+    [data-theme="dark"] .stMarkdown div[style*="background:#f8f9fa"] {
+        background: #2a2a2a !important; color: #e0e0e0 !important;
+    }
+    [data-theme="dark"] .stMarkdown div[style*="background:#f0fff4"] {
+        background: #1a2a1d !important; color: #e0e0e0 !important;
+    }
+    [data-theme="dark"] .stMarkdown div[style*="background:#fff5f5"] {
+        background: #2a1a1a !important; color: #e0e0e0 !important;
+    }
+    [data-theme="dark"] .stMarkdown div[style*="background:#f0f7ff"] {
+        background: #1a1f2a !important; color: #e0e0e0 !important;
+    }
+    [data-theme="dark"] .stMarkdown div[style*="background:#fff8f0"] {
+        background: #2a241a !important; color: #e0e0e0 !important;
+    }
+    [data-theme="dark"] .stMarkdown div[style*="background:#f5f0ff"] {
+        background: #211a2a !important; color: #e0e0e0 !important;
+    }
+    [data-theme="dark"] .stMarkdown div[style*="background:#f0f0f0"] {
+        background: #222 !important; color: #e0e0e0 !important;
+    }
+    [data-theme="dark"] .stMarkdown div[style*="color:#e53e3e"] { color: #ff6b6b !important; }
+    [data-theme="dark"] .stMarkdown div[style*="color:#e6a700"] { color: #ffd43b !important; }
+    [data-theme="dark"] .stMarkdown div[style*="color:#38a169"] { color: #68d391 !important; }
+    [data-theme="dark"] .stMarkdown span[style*="color:#e53e3e"] { color: #ff6b6b !important; }
     </style>
     """, unsafe_allow_html=True)
