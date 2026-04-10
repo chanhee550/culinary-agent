@@ -40,13 +40,17 @@ if uploaded_files:
 
         with st.spinner("AI가 재료를 분석하고 있습니다..."):
             try:
-                detected = analyze_multiple_images(images)
+                detected, errors = analyze_multiple_images(images)
             except Exception as e:
                 st.error(f"분석 중 오류가 발생했습니다: {e}")
                 st.stop()
 
+        if errors:
+            for err in errors:
+                st.warning(err)
+
         if not detected:
-            st.warning("감지된 재료가 없습니다. 다른 사진을 시도해보세요.")
+            st.error("감지된 재료가 없습니다. 다른 사진을 시도해보세요.")
             st.stop()
 
         st.session_state["detected_ingredients"] = detected

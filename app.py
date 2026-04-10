@@ -19,6 +19,66 @@ apply_global_styles()
 # 언어 선택기 (사이드바 상단)
 language_selector()
 
+# 다크/라이트 모드 전환
+st.sidebar.markdown("---")
+theme_label = "🌙 Dark" if not st.session_state.get("dark_mode", False) else "☀️ Light"
+if st.sidebar.button(theme_label, use_container_width=True, key="theme_toggle"):
+    st.session_state["dark_mode"] = not st.session_state.get("dark_mode", False)
+    st.rerun()
+
+if st.session_state.get("dark_mode", False):
+    st.markdown("""
+    <style>
+    .stApp, .main, [data-testid="stAppViewContainer"] {
+        background-color: #0e1117 !important;
+        color: #e0e0e0 !important;
+    }
+    .stApp p, .stApp span, .stApp div, .stApp li, .stApp label,
+    .stApp h1, .stApp h2, .stApp h3, .stApp h4 {
+        color: #e0e0e0 !important;
+    }
+    section[data-testid="stSidebar"] {
+        background: #161616 !important;
+    }
+    section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] div {
+        color: #ccc !important;
+    }
+    div[data-testid="stMetric"] {
+        background: #1e1e1e !important;
+    }
+    div[data-testid="stMetric"] label { color: #aaa !important; }
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #f0f0f0 !important; }
+    div[data-testid="stExpander"] { background: #1e1e1e !important; }
+    div[data-testid="stForm"] { background: #1a1a1a !important; }
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input {
+        border-bottom-color: #444 !important;
+        color: #e0e0e0 !important;
+        background: transparent !important;
+    }
+    .stButton > button:not([kind="primary"]) {
+        background: #2a2a2a !important;
+        color: #e0e0e0 !important;
+    }
+    div[data-testid="stFileUploader"] > div {
+        border-color: #444 !important;
+        background: #1a1a1a !important;
+    }
+    hr { border-top-color: #333 !important; }
+    /* Inline HTML backgrounds */
+    .stMarkdown div[style*="background:#f"], .stMarkdown span[style*="background:#f"] {
+        background: #2a2a2a !important;
+        color: #e0e0e0 !important;
+    }
+    .stMarkdown div[style*="color:#555"], .stMarkdown div[style*="color:#333"],
+    .stMarkdown span[style*="color:#555"], .stMarkdown span[style*="color:#333"] {
+        color: #ccc !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+st.sidebar.markdown("---")
+
 st.title(t("app_title"))
 st.markdown(t("app_subtitle"))
 

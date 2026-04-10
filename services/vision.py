@@ -84,14 +84,23 @@ def analyze_multiple_images(images: list[tuple[bytes, str]]) -> list[dict]:
     """
     all_ingredients = {}
 
-    for image_bytes, media_type in images:
+    errors = []
+
+    for idx, (image_bytes, media_type) in enumerate(images):
         try:
             detected = analyze_fridge_image(image_bytes, media_type)
-        except (json.JSONDecodeError, anthropic.APIError):
+        except anthropic.APIError as e:
+            errors.append(f"이미지 {idx+1}: API 오류 - {e}")
+            continue
+        except json.JSONDecodeError as e:
+            errors.append(f"이미지 {idx+1}: 응답 파싱 오류 - {e}")
+            continue
+        except Exception as e:
+            errors.append(f"이미지 {idx+1}: {e}")
             continue
         for item in detected:
             name = item.get("name", "").strip()
             if name and name not in all_ingredients:
                 all_ingredients[name] = item
 
-    return list(all_ingredients.values())
+    return list(all_ingredients.values()), errors
