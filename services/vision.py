@@ -1,9 +1,40 @@
 import base64
+import io
 import json
 import os
 import re
 
 import anthropic
+from PIL import Image
+
+MAX_IMAGE_BYTES = 4_800_000  # 4.8MB (API 제한 5MB, 여유분 확보)
+
+
+def compress_image(image_bytes: bytes, max_bytes: int = MAX_IMAGE_BYTES) -> tuple[bytes, str]:
+    """이미지를 API 제한 이하로 압축합니다."""
+    if len(image_bytes) <= max_bytes:
+        return image_bytes, "image/jpeg"
+
+    img = Image.open(io.BytesIO(image_bytes))
+    img = img.convert("RGB")
+
+    # 해상도 축소 (긴 변 1600px 이하)
+    max_dim = 1600
+    if max(img.size) > max_dim:
+        ratio = max_dim / max(img.size)
+        new_size = (int(img.size[0] * ratio), int(img.size[1] * ratio))
+        img = img.resize(new_size, Image.LANCZOS)
+
+    # JPEG 품질을 낮춰가며 압축
+    for quality in [85, 70, 55, 40]:
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=quality)
+        if buf.tell() <= max_bytes:
+            return buf.getvalue(), "image/jpeg"
+
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=30)
+    return buf.getvalue(), "image/jpeg"
 
 
 def analyze_fridge_image(image_bytes: bytes, media_type: str = "image/jpeg") -> list[dict]:
@@ -14,6 +45,8 @@ def analyze_fridge_image(image_bytes: bytes, media_type: str = "image/jpeg") -> 
     """
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
+    # 이미지 압축
+    image_bytes, media_type = compress_image(image_bytes)
     image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
 
     message = client.messages.create(
