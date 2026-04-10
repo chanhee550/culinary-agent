@@ -92,23 +92,24 @@ else:
             except ValueError:
                 expiry_display = ing.expiry_date
 
-        col_name, col_cat, col_qty, col_exp, col_edit, col_del = st.columns([2.5, 1.5, 1, 2, 0.8, 0.8])
-        with col_name:
-            st.markdown(f"**{ing.name}**")
-        with col_cat:
-            st.caption(ing.category)
-        with col_qty:
-            st.caption(ing.quantity or "-")
-        with col_exp:
-            if expiry_color:
-                st.markdown(f"<span style='{expiry_color} font-size:0.82rem;'>{expiry_display}</span>",
-                            unsafe_allow_html=True)
-            else:
-                st.caption(expiry_display)
-        with col_edit:
+        # 재료 정보 (1행)
+        exp_html = ""
+        if expiry_color:
+            exp_html = f" · <span style='{expiry_color}'>{expiry_display}</span>"
+        else:
+            exp_html = f" · {expiry_display}" if expiry_display != "-" else ""
+
+        st.markdown(
+            f"**{ing.name}** · {ing.category} · {ing.quantity or '-'}{exp_html}",
+            unsafe_allow_html=True,
+        )
+
+        # 버튼 (2행)
+        btn1, btn2 = st.columns(2)
+        with btn1:
             if st.button("수정", key=f"edit_{ing.id}", use_container_width=True):
                 st.session_state[f"editing_{ing.id}"] = True
-        with col_del:
+        with btn2:
             if st.button("삭제", key=f"del_{ing.id}", use_container_width=True):
                 delete_ingredient(ing.id)
                 st.rerun()

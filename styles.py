@@ -224,56 +224,93 @@ def apply_global_styles():
     /* ===== Mobile Responsive ===== */
     @media (max-width: 768px) {
         .main .block-container {
-            padding: 1rem 0.8rem !important;
+            padding: 0.8rem 0.6rem !important;
         }
 
         h1 {
-            font-size: 1.4rem !important;
+            font-size: 1.3rem !important;
+            margin-bottom: 0.3rem !important;
         }
 
         h2, .stHeader {
-            font-size: 1.15rem !important;
+            font-size: 1.1rem !important;
         }
 
         h3 {
-            font-size: 1rem !important;
-        }
-
-        .stButton > button {
-            width: 100% !important;
-            padding: 0.7rem 1rem !important;
             font-size: 0.95rem !important;
         }
 
+        /* Larger touch targets for buttons (min 44px) */
+        .stButton > button {
+            width: 100% !important;
+            min-height: 44px !important;
+            padding: 0.75rem 1rem !important;
+            font-size: 0.95rem !important;
+        }
+
+        /* Larger input fields for touch */
+        .stTextInput > div > div > input,
+        .stNumberInput > div > div > input {
+            min-height: 44px !important;
+            padding: 0.7rem 0.5rem !important;
+            font-size: 1rem !important;
+        }
+
+        /* Checkbox touch targets */
+        .stCheckbox label {
+            min-height: 44px !important;
+            display: flex !important;
+            align-items: center !important;
+            padding: 0.3rem 0 !important;
+        }
+
         div[data-testid="stMetric"] {
-            padding: 0.8rem !important;
+            padding: 0.8rem 1rem !important;
         }
 
         div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-            font-size: 1.3rem !important;
+            font-size: 1.2rem !important;
         }
 
         div[data-testid="stForm"] {
-            padding: 0.8rem !important;
+            padding: 1rem !important;
         }
 
         div[data-testid="stExpander"] summary {
-            font-size: 0.88rem !important;
+            min-height: 44px !important;
+            font-size: 0.9rem !important;
+            padding: 0.8rem 1rem !important;
+        }
+
+        /* File uploader smaller on mobile */
+        div[data-testid="stFileUploader"] > div {
+            padding: 1.2rem !important;
         }
 
         section[data-testid="stSidebar"] {
             min-width: 0 !important;
-            width: 260px !important;
+            width: 240px !important;
         }
 
         /* Stack columns vertically on mobile */
         div[data-testid="stHorizontalBlock"] {
             flex-wrap: wrap !important;
+            gap: 0.3rem !important;
         }
 
         div[data-testid="stHorizontalBlock"] > div {
             flex: 1 1 100% !important;
             min-width: 100% !important;
+        }
+
+        /* Selectbox touch target */
+        .stSelectbox > div > div {
+            min-height: 44px !important;
+        }
+
+        /* Caption readability */
+        .stCaption, [data-testid="stCaptionContainer"] {
+            font-size: 0.8rem !important;
         }
     }
 

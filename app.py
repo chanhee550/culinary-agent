@@ -34,15 +34,16 @@ cards = [
 cards_html = ""
 for icon, title_key, desc_key, bg in cards:
     cards_html += (
-        f'<div style="flex:1; min-width:160px; background:{bg}; border-radius:16px; padding:1.2rem 1.4rem;">'
-        f'<div style="font-size:1.5rem; margin-bottom:0.3rem;">{icon}</div>'
-        f'<div style="font-weight:600; margin-bottom:0.3rem;">{t(title_key)}</div>'
-        f'<div style="font-size:0.85rem; color:#555;">{t(desc_key)}</div>'
+        f'<div style="flex:1 1 calc(33% - 0.7rem); min-width:140px; background:{bg};'
+        f' border-radius:16px; padding:1rem 1.2rem; box-sizing:border-box;">'
+        f'<div style="font-size:1.3rem; margin-bottom:0.2rem;">{icon}</div>'
+        f'<div style="font-weight:600; font-size:0.9rem; margin-bottom:0.2rem;">{t(title_key)}</div>'
+        f'<div style="font-size:0.78rem; color:#555;">{t(desc_key)}</div>'
         f'</div>'
     )
 
 st.markdown(
-    f'<div style="display:flex; flex-wrap:wrap; gap:1rem; margin:1.5rem 0; font-family:\'Noto Sans KR\',sans-serif;">'
+    f'<div style="display:flex; flex-wrap:wrap; gap:0.6rem; margin:1rem 0; font-family:\'Noto Sans KR\',sans-serif;">'
     f'{cards_html}</div>',
     unsafe_allow_html=True,
 )

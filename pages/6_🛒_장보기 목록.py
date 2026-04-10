@@ -17,16 +17,12 @@ CATEGORIES = ["채소", "과일", "육류", "해산물", "유제품", "양념/�
 
 # --- 수동 추가 ---
 with st.form("add_shopping", clear_on_submit=True):
-    col1, col2, col3 = st.columns([3, 1, 1])
-    with col1:
-        name = st.text_input("재료명", placeholder="예: 두부", label_visibility="collapsed")
-    with col2:
-        quantity = st.text_input("수량", placeholder="수량", label_visibility="collapsed")
-    with col3:
-        if st.form_submit_button("추가", use_container_width=True):
-            if name.strip():
-                add_shopping_item(name.strip(), quantity.strip() or None)
-                st.rerun()
+    name = st.text_input("재료명", placeholder="예: 두부")
+    quantity = st.text_input("수량 (선택)", placeholder="예: 2개")
+    if st.form_submit_button("추가", use_container_width=True):
+        if name.strip():
+            add_shopping_item(name.strip(), quantity.strip() or None)
+            st.rerun()
 
 # --- 목록 표시 ---
 items = get_shopping_list()
@@ -42,15 +38,12 @@ checked = [it for it in items if it.checked]
 if unchecked:
     st.subheader(f"구매 필요 ({len(unchecked)}개)")
     for item in unchecked:
-        col_check, col_name, col_qty, col_del = st.columns([0.5, 3, 1.5, 0.8])
+        qty_text = f" ({item.quantity})" if item.quantity else ""
+        col_check, col_del = st.columns([5, 1])
         with col_check:
-            if st.checkbox("", key=f"check_{item.id}", value=False):
+            if st.checkbox(f"**{item.name}**{qty_text}", key=f"check_{item.id}", value=False):
                 toggle_shopping_item(item.id)
                 st.rerun()
-        with col_name:
-            st.markdown(f"**{item.name}**")
-        with col_qty:
-            st.caption(item.quantity or "-")
         with col_del:
             if st.button("✕", key=f"del_shop_{item.id}", use_container_width=True):
                 delete_shopping_item(item.id)
@@ -61,15 +54,12 @@ if checked:
     st.markdown("---")
     st.subheader(f"구매 완료 ({len(checked)}개)")
     for item in checked:
-        col_check, col_name, col_qty, col_del = st.columns([0.5, 3, 1.5, 0.8])
+        qty_text = f" ({item.quantity})" if item.quantity else ""
+        col_check, col_del = st.columns([5, 1])
         with col_check:
-            if st.checkbox("", key=f"check_{item.id}", value=True):
+            if st.checkbox(f"~~{item.name}~~{qty_text}", key=f"check_{item.id}", value=True):
                 toggle_shopping_item(item.id)
                 st.rerun()
-        with col_name:
-            st.markdown(f"~~{item.name}~~")
-        with col_qty:
-            st.caption(item.quantity or "-")
         with col_del:
             if st.button("✕", key=f"del_shop_{item.id}", use_container_width=True):
                 delete_shopping_item(item.id)
