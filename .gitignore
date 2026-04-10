@@ -2,7 +2,7 @@
 __pycache__/
 *.pyc
 data/culinary.db
-.streamlit/
+.streamlit/secrets.toml
 
 # Node.js
 ax-tests/node_modules/
