@@ -69,6 +69,14 @@ def init_db():
         )
     """)
 
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS daily_recipes (
+            date TEXT PRIMARY KEY,
+            recipes_json TEXT NOT NULL,
+            generated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # 기존 ingredients 테이블에 expiry_date 컬럼이 없으면 추가
     columns = [row["name"] for row in conn.execute("PRAGMA table_info(ingredients)").fetchall()]
     if "expiry_date" not in columns:

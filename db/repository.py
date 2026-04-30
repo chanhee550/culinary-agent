@@ -1,7 +1,8 @@
 import json
+from datetime import date
 
 from db.database import get_connection
-from db.models import Ingredient, UserProfile, SavedRecipe, ShoppingItem
+from db.models import Ingredient, UserProfile, SavedRecipe, ShoppingItem, DailyRecipes
 
 
 # ===== Ingredients =====
@@ -263,5 +264,61 @@ def add_missing_to_shopping(missing_items: list[str]):
                ON CONFLICT(name) DO NOTHING""",
             (name,),
         )
+    conn.commit()
+    conn.close()
+
+
+# ===== Daily Recipes (오늘의 레시피) =====
+
+def _today_iso() -> str:
+    return date.today().isoformat()
+
+
+def get_today_recipes() -> list[dict] | None:
+    """오늘 날짜로 캐시된 레시피 반환. 없으면 None."""
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT recipes_json FROM daily_recipes WHERE date = ?",
+        (_today_iso(),),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    try:
+        return json.loads(row["recipes_json"])
+    except json.JSONDecodeError:
+        return None
+
+
+def save_today_recipes(recipes: list[dict]) -> None:
+    """오늘 날짜로 레시피 캐싱. 같은 날 재호출 시 덮어씀."""
+    conn = get_connection()
+    conn.execute(
+        """INSERT INTO daily_recipes (date, recipes_json, generated_at)
+           VALUES (?, ?, CURRENT_TIMESTAMP)
+           ON CONFLICT(date) DO UPDATE SET
+               recipes_json = excluded.recipes_json,
+               generated_at = CURRENT_TIMESTAMP""",
+        (_today_iso(), json.dumps(recipes, ensure_ascii=False)),
+    )
+    conn.commit()
+    conn.close()
+
+
+def clear_today_recipes() -> None:
+    """오늘 캐시 강제 삭제 (사용자 '새로 받기' 동작)."""
+    conn = get_connection()
+    conn.execute("DELETE FROM daily_recipes WHERE date = ?", (_today_iso(),))
+    conn.commit()
+    conn.close()
+
+
+def prune_old_daily_recipes(keep_days: int = 7) -> None:
+    """오래된 캐시 정리. keep_days 이전 데이터 삭제."""
+    conn = get_connection()
+    conn.execute(
+        "DELETE FROM daily_recipes WHERE date < date('now', '-' || ? || ' days')",
+        (keep_days,),
+    )
     conn.commit()
     conn.close()

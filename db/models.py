@@ -43,3 +43,10 @@ class ShoppingItem:
     category: str
     checked: bool
     added_at: str
+
+
+@dataclass
+class DailyRecipes:
+    date: str           # ISO date "YYYY-MM-DD"
+    recipes: list[dict] # 추천 레시피 리스트 (3개)
+    generated_at: str
