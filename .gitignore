@@ -4,6 +4,32 @@ __pycache__/
 data/culinary.db
 .streamlit/secrets.toml
 
-# Node.js
+# Node.js (Streamlit AX 테스트용)
 ax-tests/node_modules/
 ax-tests/reports/
+
+# Firebase 자격증명 (Firestore 모드 사용 시)
+firebase-service-account.json
+*-service-account.json
+
+# Mobile PWA (Next.js)
+mobile/node_modules/
+mobile/.next/
+mobile/out/
+mobile/.env.local
+mobile/*.tsbuildinfo
+mobile/public/sw.js
+mobile/public/sw.js.map
+mobile/public/workbox-*.js
+mobile/public/workbox-*.js.map
+
+# Android TWA 빌드 산출물
+android/.bubblewrap/
+android/*.keystore
+android/*.jks
+android/android.keystore
+android/*.aab
+android/*.apk
+android/twa-manifest.json
+android/build/
+android/.gradle/

@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+html, body {
+  height: 100%;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* 모바일 터치 영역 보장 */
+button, a, input[type="checkbox"], input[type="radio"] {
+  touch-action: manipulation;
+}
+
+/* iOS 입력창 줌 방지 */
+input, textarea, select {
+  font-size: 16px;
+}
+
+/* 스크롤바 슬림 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded; }
