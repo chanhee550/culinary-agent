@@ -1,8 +1,7 @@
 import os
 
 import streamlit as st
-from db.database import init_db
-from db.repository import get_ingredient_names
+from db.storage import init_db, get_ingredient_names
 from services.recipe import recommend_recipes
 
 init_db()

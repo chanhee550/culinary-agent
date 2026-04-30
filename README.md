@@ -5,9 +5,11 @@
 ## 주요 기능
 
 ### 1. 냉장고 스캔
-- 냉장고 사진을 업로드하면 Claude Vision AI가 재료를 자동 인식
-- 여러 장의 사진 동시 업로드 가능
-- 감지된 재료를 체크리스트로 확인 후 선택 저장
+- 냉장고 사진을 업로드하면 Claude Vision AI(Haiku 4.5)가 재료를 자동 인식
+- 여러 장의 사진을 **병렬로** 동시 분석 (3장 = 1장 분석 시간)
+- 결과를 두 그룹으로 분리:
+  - **확정 재료**: 모양·라벨로 명확히 식별 가능한 항목 (계란, 우유팩 등) → 체크박스로 선택
+  - **불확실 항목**: 통/병에 담긴 음식 → AI가 외관 단서·추측·위치를 제공하고 사용자가 직접 입력
 - 중복 재료 자동 처리 (이미 있는 재료는 업데이트)
 
 ### 2. 재료 관리
@@ -35,61 +37,136 @@
 | 구분 | 기술 |
 |------|------|
 | UI | Streamlit |
-| AI | Claude API (anthropic SDK) - Vision + Text |
-| DB | SQLite |
+| AI | Claude Haiku 4.5 (anthropic SDK) - Vision + Text |
+| DB | SQLite (로컬) 또는 Firebase Firestore (클라우드) — 환경변수로 스위칭 |
 | 언어 | Python 3.10+ |
 
 ---
 
-## 프로젝트 구조
+## 프로젝트 구조 (V0)
 
 ```
 culinary-agent/
-├── app.py                     # Streamlit 진입점 (메인 페이지)
-├── requirements.txt           # 의존성 패키지
-├── .env                       # API 키 설정
+├── app.py                     # Streamlit 데스크톱 앱 (개발/디버깅용으로 유지)
+├── requirements.txt
+├── .env                       # 공통 환경변수
 │
-├── db/
-│   ├── database.py            # SQLite 연결 및 테이블 초기화
-│   ├── models.py              # 데이터 모델 (Ingredient dataclass)
-│   └── repository.py          # CRUD 함수 (추가/수정/삭제/조회)
+├── services/                  # AI / 비즈니스 로직 (모든 진입점에서 재사용)
+│   ├── vision.py              # Claude Haiku 4.5 Vision (confirmed/unknowns 분리)
+│   ├── recipe.py              # Claude Haiku 4.5 Text - 한식 레시피
+│   └── substitution.py        # 대체 재료 매칭
 │
-├── services/
-│   ├── vision.py              # Claude Vision API - 이미지→재료 감지
-│   ├── recipe.py              # Claude API - 재료→레시피 추천
-│   └── substitution.py        # 대체 재료 검색 및 매칭 로직
+├── db/                        # 저장소 추상화
+│   ├── storage.py             # STORAGE_BACKEND 환경변수로 스위칭
+│   ├── database.py            # SQLite (로컬)
+│   ├── repository.py          # SQLite 구현
+│   ├── firestore_repo.py      # Firestore 구현 (멀티 디바이스/유저)
+│   └── models.py
 │
-├── pages/
-│   ├── 1_fridge_scan.py       # 냉장고 스캔 페이지
-│   ├── 2_ingredients.py       # 재료 관리 페이지
-│   └── 3_recipes.py           # 레시피 추천 페이지
+├── pages/                     # Streamlit 페이지
+│   ├── 1_fridge_scan.py
+│   ├── 2_ingredients.py
+│   └── 3_recipes.py
+│
+├── backend/                   ⭐ NEW — FastAPI HTTP 백엔드 (모바일 앱이 호출)
+│   ├── main.py                # /scan, /ingredients, /recipes 엔드포인트
+│   └── requirements.txt
+│
+├── mobile/                    ⭐ NEW — Next.js PWA 프론트엔드
+│   ├── app/                   # 4개 화면 (홈/스캔/재료/레시피)
+│   ├── components/            # BottomNav 등
+│   ├── lib/                   # API 클라이언트, 타입
+│   ├── public/manifest.json   # PWA manifest (TWA 필수)
+│   └── public/.well-known/    # assetlinks.json (TWA 도메인 검증용)
+│
+├── android/                   ⭐ NEW — TWA 빌드 설정/문서
+│   └── README.md              # Bubblewrap으로 AAB 만드는 절차
 │
 └── data/
-    ├── substitutions.json     # 대체 재료 매핑 데이터 (20개+)
-    └── culinary.db            # SQLite DB (런타임 자동 생성)
+    ├── substitutions.json
+    └── culinary.db            # 런타임 자동 생성
 ```
 
 ---
 
-## 설치 및 실행
+## 빠른 시작 (V0 — 모바일 앱 동작 확인)
 
-### 1. 의존성 설치
+### 터미널 1: 백엔드
 ```bash
 cd culinary-agent
-pip install -r requirements.txt
+pip install -r requirements.txt -r backend/requirements.txt
+cp .env.example .env             # ANTHROPIC_API_KEY 입력
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 2. API 키 설정
-`.env` 파일을 열어 Anthropic API 키를 입력합니다:
-```
-ANTHROPIC_API_KEY=sk-ant-xxxxx
+### 터미널 2: 모바일 PWA
+```bash
+cd culinary-agent/mobile
+npm install
+cp .env.local.example .env.local   # NEXT_PUBLIC_API_URL=http://localhost:8000
+npm run dev
+# http://localhost:3000
 ```
 
-### 3. 실행
+### 모바일에서 확인 (같은 Wi-Fi)
+1. PC 로컬 IP 확인 (예: 192.168.0.10)
+2. 백엔드: `uvicorn ... --host 0.0.0.0`로 떠 있어야 함
+3. `mobile/.env.local`을 `NEXT_PUBLIC_API_URL=http://192.168.0.10:8000`으로 변경
+4. 폰에서 `http://192.168.0.10:3000` 접속
+
+### Streamlit 데스크톱 앱 (기존, 그대로 사용 가능)
 ```bash
 streamlit run app.py
 ```
-브라우저에서 `http://localhost:8501`로 접속합니다.
+
+---
+
+## Play Store 배포 절차
+
+V0 → 출시까지 5단계:
+
+1. **PWA 배포** — `mobile/` 디렉토리를 Vercel에 배포 (도메인 확보)
+2. **백엔드 배포** — `backend/` 를 Cloud Run / Railway / Fly.io에 배포
+3. **앱 아이콘 추가** — [mobile/public/icons/](./mobile/public/icons/) 의 README 참조
+4. **TWA 빌드** — [android/README.md](./android/README.md) 절차로 AAB 생성
+5. **Play Console 등록** — 개발자 등록($25) → 내부 테스트 → 비공개 테스트(20명, 14일) → 프로덕션
+
+자세한 절차는 [android/README.md](./android/README.md) 참조.
+
+---
+
+## Firestore 사용하기 (선택)
+
+여러 기기 동기화나 Play Store 앱 연동을 염두에 둔다면 Firestore로 전환할 수 있습니다.
+
+### 1. Firebase 프로젝트 준비
+1. [Firebase Console](https://console.firebase.google.com)에서 새 프로젝트 생성
+2. **Build > Firestore Database** 활성화 (Native 모드, 위치는 `asia-northeast3` 권장)
+3. **Project Settings > Service accounts** 탭에서 **Generate new private key** → JSON 파일 다운로드
+4. 다운로드한 파일을 프로젝트 루트에 `firebase-service-account.json`으로 저장 (이미 `.gitignore`에 등록됨)
+
+### 2. `.env` 수정
+```
+STORAGE_BACKEND=firestore
+GOOGLE_APPLICATION_CREDENTIALS=./firebase-service-account.json
+FIREBASE_USER_ID=local      # 단일 사용자 임시 식별자, Auth 도입 시 실제 uid로 교체
+```
+
+### 3. 데이터 스키마
+```
+/users/{user_id}/ingredients/{auto_id}
+    - name: string                (사용자 내 UNIQUE)
+    - category: string
+    - quantity: string | null
+    - source: "scan" | "manual"
+    - created_at: timestamp
+    - updated_at: timestamp
+```
+
+### 4. 백엔드 전환
+`STORAGE_BACKEND` 값만 바꾸면 즉시 전환됩니다. 코드 수정 불필요:
+- `sqlite` → 로컬 `data/culinary.db`
+- `firestore` → 클라우드 Firestore
 
 ---
 

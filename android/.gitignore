@@ -1,0 +1,14 @@
+# Bubblewrap이 생성하는 파일들
+.bubblewrap/
+node_modules/
+*.keystore
+*.jks
+android.keystore
+*.aab
+*.apk
+twa-manifest.json
+output-metadata.json
+build/
+app/build/
+.gradle/
+local.properties

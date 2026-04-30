@@ -1,6 +1,6 @@
 import streamlit as st
-from db.database import init_db
-from db.repository import (
+from db.storage import (
+    init_db,
     get_all_ingredients,
     add_ingredient,
     update_ingredient,

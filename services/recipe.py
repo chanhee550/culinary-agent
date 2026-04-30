@@ -1,10 +1,18 @@
 import json
 import os
 import re
+from functools import lru_cache
 
 import anthropic
 
 from services.substitution import load_substitutions, find_all_substitutable
+
+MODEL = "claude-haiku-4-5-20251001"
+
+
+@lru_cache(maxsize=1)
+def _client() -> anthropic.Anthropic:
+    return anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 
 def recommend_recipes(ingredients: list[str], max_missing: int = 2) -> list[dict]:
@@ -24,7 +32,7 @@ def recommend_recipes(ingredients: list[str], max_missing: int = 2) -> list[dict
             ...
         ]
     """
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    client = _client()
 
     substitutions = load_substitutions()
     sub_info = "\n".join(
@@ -34,7 +42,7 @@ def recommend_recipes(ingredients: list[str], max_missing: int = 2) -> list[dict
     ingredient_list = ", ".join(ingredients)
 
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=MODEL,
         max_tokens=4096,
         messages=[
             {

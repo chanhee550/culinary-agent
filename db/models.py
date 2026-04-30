@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Ingredient:
-    id: int | None
+    id: int | str | None
     name: str
     category: str
     quantity: str | None

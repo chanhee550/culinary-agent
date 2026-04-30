@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 data/culinary.db
 .streamlit/
+firebase-service-account.json
+*-service-account.json

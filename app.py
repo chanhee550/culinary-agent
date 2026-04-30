@@ -1,6 +1,6 @@
 import streamlit as st
 from dotenv import load_dotenv
-from db.database import init_db
+from db.storage import init_db, get_all_ingredients
 
 load_dotenv()
 init_db()
@@ -21,14 +21,11 @@ st.markdown("""
 3. **레시피 추천** - 보유 재료 기반으로 레시피를 추천받습니다
 """)
 
-# 사이드바에 현재 재료 수 표시
-from db.repository import get_all_ingredients
-
 ingredients = get_all_ingredients()
 st.sidebar.metric("보유 재료", f"{len(ingredients)}개")
 
 if ingredients:
-    categories = {}
+    categories: dict[str, list[str]] = {}
     for ing in ingredients:
         categories.setdefault(ing.category, []).append(ing.name)
     st.sidebar.markdown("---")
