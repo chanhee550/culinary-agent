@@ -99,11 +99,7 @@ def health():
 
 @app.post("/scan")
 async def scan(files: list[UploadFile] = File(...)):
-    """다중 이미지 업로드 → 감지된 재료 + 에러 반환.
-
-    응답 형식은 모바일 PWA의 Level 2 UI와 호환되도록 confirmed/unknowns 구조를 유지.
-    Phase 4에서 vision.py 통합 후 unknowns가 채워집니다.
-    """
+    """다중 이미지 업로드 → Level 2 결과 (confirmed + unknowns + errors)."""
     if not files:
         raise HTTPException(status_code=400, detail="이미지가 필요합니다.")
 
@@ -117,8 +113,7 @@ async def scan(files: list[UploadFile] = File(...)):
     if not images:
         raise HTTPException(status_code=400, detail="유효한 이미지가 없습니다.")
 
-    items, errors = analyze_multiple_images(images)
-    return {"confirmed": items, "unknowns": [], "errors": errors}
+    return analyze_multiple_images(images)
 
 
 @app.get("/ingredients", response_model=list[IngredientOut])
