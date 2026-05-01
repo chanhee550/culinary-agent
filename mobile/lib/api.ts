@@ -1,4 +1,6 @@
-import type { Ingredient, Recipe, ScanResult } from "./types";
+import type {
+  Ingredient, Recipe, ScanResult, SavedRecipe, ShoppingItem,
+} from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -61,5 +63,47 @@ export const api = {
     request<Recipe[]>("/recipes", {
       method: "POST",
       body: JSON.stringify({ max_missing, ingredients }),
+    }),
+
+  // ----- Saved Recipes -----
+  listSavedRecipes: () => request<SavedRecipe[]>("/saved_recipes"),
+
+  saveRecipe: (recipe: Recipe) =>
+    request<{ id: number }>("/saved_recipes", {
+      method: "POST",
+      body: JSON.stringify(recipe),
+    }),
+
+  rateRecipe: (id: number, rating: number) =>
+    request<{ updated: number; rating: number }>(`/saved_recipes/${id}/rating`, {
+      method: "PATCH",
+      body: JSON.stringify({ rating }),
+    }),
+
+  deleteSavedRecipe: (id: number) =>
+    request<{ deleted: number }>(`/saved_recipes/${id}`, { method: "DELETE" }),
+
+  // ----- Shopping List -----
+  listShopping: () => request<ShoppingItem[]>("/shopping"),
+
+  addShopping: (item: { name: string; quantity?: string | null; category?: string }) =>
+    request<{ added: string }>("/shopping", {
+      method: "POST",
+      body: JSON.stringify(item),
+    }),
+
+  toggleShopping: (id: number) =>
+    request<{ toggled: number }>(`/shopping/${id}/toggle`, { method: "PATCH" }),
+
+  deleteShopping: (id: number) =>
+    request<{ deleted: number }>(`/shopping/${id}`, { method: "DELETE" }),
+
+  clearCheckedShopping: () =>
+    request<{ cleared: boolean }>("/shopping/checked/all", { method: "DELETE" }),
+
+  shoppingFromMissing: (items: string[]) =>
+    request<{ added: number }>("/shopping/from_missing", {
+      method: "POST",
+      body: JSON.stringify({ items }),
     }),
 };

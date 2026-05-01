@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, ChefHat, Clock, Star } from "lucide-react";
+import { Loader2, ChefHat, Clock, Star, Bookmark, ShoppingCart, Check } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Recipe } from "@/lib/types";
 
@@ -113,10 +113,41 @@ function RecipeCard({
 }: { recipe: Recipe; open: boolean; onToggle: () => void }) {
   const missing = new Set(recipe.missing || []);
   const subs = recipe.substitutions || {};
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [shoppingAdded, setShoppingAdded] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const stars =
     recipe.difficulty === "쉬움" ? 3 :
     recipe.difficulty === "어려움" ? 1 : 2;
+
+  async function handleSave(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (saved || saving) return;
+    setSaving(true);
+    setActionError(null);
+    try {
+      await api.saveRecipe(recipe);
+      setSaved(true);
+    } catch (err) {
+      setActionError(String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAddMissing(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (shoppingAdded || !recipe.missing?.length) return;
+    setActionError(null);
+    try {
+      await api.shoppingFromMissing(recipe.missing);
+      setShoppingAdded(true);
+    } catch (err) {
+      setActionError(String(err));
+    }
+  }
 
   return (
     <li className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
@@ -144,6 +175,39 @@ function RecipeCard({
         </div>
         <span className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
       </button>
+
+      {/* 액션 버튼들 */}
+      <div className="flex gap-2 border-t border-gray-100 px-4 py-2.5">
+        <button
+          onClick={handleSave}
+          disabled={saved || saving}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors ${
+            saved
+              ? "bg-brand-soft text-brand-dark"
+              : "border border-gray-200 text-gray-700 active:bg-gray-50"
+          } disabled:opacity-50`}
+        >
+          {saved ? <Check size={14} /> : <Bookmark size={14} />}
+          {saving ? "저장 중..." : saved ? "저장됨" : "레시피 저장"}
+        </button>
+        {recipe.missing?.length > 0 && (
+          <button
+            onClick={handleAddMissing}
+            disabled={shoppingAdded}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-colors ${
+              shoppingAdded
+                ? "bg-amber-50 text-amber-700"
+                : "border border-gray-200 text-gray-700 active:bg-gray-50"
+            } disabled:opacity-50`}
+          >
+            {shoppingAdded ? <Check size={14} /> : <ShoppingCart size={14} />}
+            {shoppingAdded ? "장보기 추가됨" : `부족 ${recipe.missing.length}개 → 장보기`}
+          </button>
+        )}
+      </div>
+      {actionError && (
+        <p className="border-t border-gray-100 px-4 py-2 text-xs text-red-600">{actionError}</p>
+      )}
 
       {open && (
         <div className="space-y-4 border-t border-gray-100 p-4">

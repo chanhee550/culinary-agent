@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Camera, ChefHat, Refrigerator } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Camera, ChefHat, Refrigerator, BookmarkCheck, ShoppingCart } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Ingredient } from "@/lib/types";
 
@@ -49,12 +50,34 @@ export default function HomePage() {
         <QuickAction href="/recipes" icon={ChefHat} label="레시피 추천" tone="amber" />
         <Link
           href="/ingredients"
-          className="col-span-2 flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 active:bg-gray-50"
+          className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 active:bg-gray-50"
         >
           <Refrigerator className="text-gray-700" size={22} />
           <div className="flex-1">
             <p className="text-sm font-semibold">재료 관리</p>
-            <p className="text-xs text-gray-500">직접 추가하거나 수정·삭제</p>
+            <p className="text-xs text-gray-500">유통기한까지</p>
+          </div>
+          <span className="text-gray-400">›</span>
+        </Link>
+        <Link
+          href="/saved"
+          className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 active:bg-gray-50"
+        >
+          <BookmarkCheck className="text-gray-700" size={22} />
+          <div className="flex-1">
+            <p className="text-sm font-semibold">저장 레시피</p>
+            <p className="text-xs text-gray-500">즐겨찾기 + 별점</p>
+          </div>
+          <span className="text-gray-400">›</span>
+        </Link>
+        <Link
+          href="/shopping"
+          className="col-span-2 flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 active:bg-gray-50"
+        >
+          <ShoppingCart className="text-gray-700" size={22} />
+          <div className="flex-1">
+            <p className="text-sm font-semibold">장보기 목록</p>
+            <p className="text-xs text-gray-500">사야 할 재료 모아보기</p>
           </div>
           <span className="text-gray-400">›</span>
         </Link>
@@ -93,7 +116,7 @@ function QuickAction({
   href, icon: Icon, label, tone,
 }: {
   href: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   label: string;
   tone: "brand" | "amber";
 }) {

@@ -44,3 +44,26 @@ export const CATEGORIES = [
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];
+
+export interface SavedRecipe {
+  id: number;
+  name: string;
+  description: string;
+  ingredients: string[];
+  missing: string[];
+  instructions: string[];
+  difficulty: string;
+  time: string;
+  substitutions: Record<string, string>;
+  rating: number | null;
+  saved_at: string;
+}
+
+export interface ShoppingItem {
+  id: number;
+  name: string;
+  quantity: string | null;
+  category: string;
+  checked: boolean;
+  added_at: string;
+}

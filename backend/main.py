@@ -22,6 +22,8 @@ from pydantic import BaseModel, Field
 
 load_dotenv()
 
+import json  # noqa: E402
+
 from db.storage import (  # noqa: E402
     add_ingredient,
     clear_all,
@@ -31,6 +33,18 @@ from db.storage import (  # noqa: E402
     init_db,
     update_ingredient,
     upsert_ingredients,
+)
+from db.repository import (  # noqa: E402  (master 풀기능, storage 추상화 X)
+    add_missing_to_shopping,
+    add_shopping_item,
+    clear_checked_shopping,
+    delete_saved_recipe,
+    delete_shopping_item,
+    get_saved_recipes,
+    get_shopping_list,
+    save_recipe,
+    toggle_shopping_item,
+    update_recipe_rating,
 )
 from services.recipe import recommend_recipes  # noqa: E402
 from services.vision import analyze_multiple_images  # noqa: E402
@@ -214,3 +228,143 @@ def recipes(req: RecipeRequest):
         cuisine_filter=req.cuisine_filter,
         taste_filter=req.taste_filter,
     )
+
+
+# ---------- Saved Recipes ----------
+
+class RecipeIn(BaseModel):
+    name: str
+    description: str = ""
+    ingredients: list[str] = []
+    missing: list[str] = []
+    instructions: list[str] = []
+    difficulty: str = "보통"
+    time: str = ""
+    substitutions: dict[str, str] = {}
+
+
+class SavedRecipeOut(BaseModel):
+    id: int
+    name: str
+    description: str
+    ingredients: list[str]
+    missing: list[str]
+    instructions: list[str]
+    difficulty: str
+    time: str
+    substitutions: dict
+    rating: int | None
+    saved_at: str
+
+
+def _parse_saved(row) -> SavedRecipeOut:
+    def _j(s, default):
+        try:
+            return json.loads(s) if s else default
+        except (json.JSONDecodeError, TypeError):
+            return default
+
+    return SavedRecipeOut(
+        id=row.id,
+        name=row.name,
+        description=row.description or "",
+        ingredients=_j(row.ingredients, []),
+        missing=_j(row.missing, []),
+        instructions=_j(row.instructions, []),
+        difficulty=row.difficulty or "보통",
+        time=row.time or "",
+        substitutions=_j(row.substitutions, {}),
+        rating=row.rating,
+        saved_at=row.saved_at,
+    )
+
+
+@app.get("/saved_recipes", response_model=list[SavedRecipeOut])
+def list_saved_recipes():
+    return [_parse_saved(r) for r in get_saved_recipes()]
+
+
+@app.post("/saved_recipes")
+def create_saved_recipe(recipe: RecipeIn):
+    rid = save_recipe(recipe.model_dump())
+    return {"id": rid}
+
+
+class RatingUpdate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+
+
+@app.patch("/saved_recipes/{recipe_id}/rating")
+def patch_rating(recipe_id: int, body: RatingUpdate):
+    update_recipe_rating(recipe_id, body.rating)
+    return {"updated": recipe_id, "rating": body.rating}
+
+
+@app.delete("/saved_recipes/{recipe_id}")
+def remove_saved_recipe(recipe_id: int):
+    delete_saved_recipe(recipe_id)
+    return {"deleted": recipe_id}
+
+
+# ---------- Shopping List ----------
+
+class ShoppingItemIn(BaseModel):
+    name: str
+    quantity: str | None = None
+    category: str = "기타"
+
+
+class ShoppingItemOut(BaseModel):
+    id: int
+    name: str
+    quantity: str | None
+    category: str
+    checked: bool
+    added_at: str
+
+
+@app.get("/shopping", response_model=list[ShoppingItemOut])
+def list_shopping():
+    items = get_shopping_list()
+    return [
+        ShoppingItemOut(
+            id=i.id, name=i.name, quantity=i.quantity,
+            category=i.category, checked=i.checked, added_at=i.added_at,
+        )
+        for i in items
+    ]
+
+
+@app.post("/shopping")
+def create_shopping(item: ShoppingItemIn):
+    add_shopping_item(item.name, item.quantity, item.category)
+    return {"added": item.name}
+
+
+@app.patch("/shopping/{item_id}/toggle")
+def toggle_shopping(item_id: int):
+    toggle_shopping_item(item_id)
+    return {"toggled": item_id}
+
+
+@app.delete("/shopping/{item_id}")
+def remove_shopping(item_id: int):
+    delete_shopping_item(item_id)
+    return {"deleted": item_id}
+
+
+@app.delete("/shopping/checked/all")
+def clear_checked():
+    clear_checked_shopping()
+    return {"cleared": True}
+
+
+class MissingItems(BaseModel):
+    items: list[str]
+
+
+@app.post("/shopping/from_missing")
+def shopping_from_missing(body: MissingItems):
+    """레시피의 부족 재료 목록 → 장보기 목록에 일괄 추가."""
+    add_missing_to_shopping(body.items)
+    return {"added": len(body.items)}
