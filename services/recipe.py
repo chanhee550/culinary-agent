@@ -1,17 +1,29 @@
 import json
 import os
 import re
+from functools import lru_cache
 
 import anthropic
 
 from db.repository import get_profile, get_expiring_ingredients
 from services.substitution import load_substitutions, find_all_substitutable
 
+DEFAULT_RECIPE_MODEL = "claude-haiku-4-5-20251001"
+
+
+@lru_cache(maxsize=1)
+def _client() -> anthropic.Anthropic:
+    return anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+
+def _model() -> str:
+    return os.getenv("RECIPE_MODEL", DEFAULT_RECIPE_MODEL)
+
 
 def recommend_recipes(ingredients: list[str], max_missing: int = 2,
                       cuisine_filter: str = "", taste_filter: str = "") -> list[dict]:
     """보유 재료 기반으로 레시피를 추천합니다. 프로필 정보를 자동 반영합니다."""
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    client = _client()
 
     # 프로필 로드
     profile = get_profile()
@@ -55,8 +67,8 @@ def recommend_recipes(ingredients: list[str], max_missing: int = 2,
     conditions_text = "\n".join(f"{i+1}. {c}" for i, c in enumerate(conditions))
 
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4096,
+        model=_model(),
+        max_tokens=2048,
         messages=[
             {
                 "role": "user",
