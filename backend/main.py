@@ -13,9 +13,11 @@ HTTP 엔드포인트를 노출합니다. Streamlit 앱과 SQLite를 공유합니
 import os
 from contextlib import asynccontextmanager
 
+import anthropic
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 load_dotenv()
@@ -51,6 +53,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(anthropic.AuthenticationError)
+async def anthropic_auth_handler(request: Request, exc: anthropic.AuthenticationError):
+    return JSONResponse(
+        status_code=401,
+        content={
+            "error": "anthropic_auth_failed",
+            "message": ".env 파일의 ANTHROPIC_API_KEY가 유효하지 않습니다. "
+                       "console.anthropic.com/settings/keys 에서 새 키를 발급받아 갱신하세요.",
+            "detail": str(exc),
+        },
+    )
+
+
+@app.exception_handler(anthropic.APIError)
+async def anthropic_api_handler(request: Request, exc: anthropic.APIError):
+    return JSONResponse(
+        status_code=502,
+        content={
+            "error": "anthropic_api_error",
+            "message": "Claude API 호출에 실패했습니다.",
+            "detail": str(exc),
+        },
+    )
 
 
 # ---------- Schemas ----------
