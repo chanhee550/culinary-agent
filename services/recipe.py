@@ -92,6 +92,21 @@ def recommend_recipes(ingredients: list[str], max_missing: int = 2,
 6. **기본 양념은 missing에 포함하지 마세요** — 사용자 가정에 항상 있다고 가정:
    소금, 설탕, 후추, 간장, 식용유, 물, 통깨, 밥
    (단, 보유 재료 목록에 명시된 다른 양념은 그대로 사용 가능)
+7. **🚫 환각 금지 — 가장 중요**:
+   - instructions(조리법)에 등장하는 모든 재료는 반드시 다음 중 하나여야 합니다:
+     (a) ingredients 배열에 명시된 재료
+     (b) 위 6번의 기본 양념 8가지 (소금/설탕/후추/간장/식용유/물/통깨/밥)
+   - ingredients에 없는 재료를 "다시마 육수", "양념장", "비법 소스" 같은
+     이름으로 슬쩍 instructions에 끼워넣지 마세요
+   - 전통 레시피가 추가 재료를 요구하면 → missing에 명시하거나, 그 재료
+     없이 만들 수 있는 변형 레시피로 작성하세요
+   - ❌ BAD: ingredients=["갈비"], instructions=["1. 다시마와 양파로 육수를 내고..."]
+     (다시마, 양파가 ingredients에도 missing에도 없음)
+   - ✅ GOOD: ingredients=["갈비"], missing=["다시마","양파"], instructions=["1. 다시마와 양파로 육수를 내고..."]
+     (사용된 재료가 모두 ingredients+missing에 있음)
+   - ✅ GOOD: ingredients=["갈비"], instructions=["1. 갈비를 물에 30분 담가 핏물을 빼고..."]
+     (기본 양념 "물"만 사용, ingredients 재료만 사용)
+   - 작성 후 self-check: instructions의 모든 재료가 ingredients/missing/기본양념에 있는지 확인하세요
 
 ## 응답 형식
 다음 JSON 배열로만 반환하세요 (다른 텍스트 없이):
