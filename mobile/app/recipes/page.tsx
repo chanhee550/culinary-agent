@@ -117,6 +117,30 @@ function RecipeCard({
   const [saving, setSaving] = useState(false);
   const [shoppingAdded, setShoppingAdded] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // 부족 재료 항목별 처리 상태: ingredient name → 'owned' | 'shopping' | undefined
+  const [perItem, setPerItem] = useState<Record<string, "owned" | "shopping">>({});
+
+  async function markOwned(name: string) {
+    if (perItem[name]) return;
+    setActionError(null);
+    try {
+      await api.addIngredient({ name, category: "기타" });
+      setPerItem((p) => ({ ...p, [name]: "owned" }));
+    } catch (err) {
+      setActionError(String(err));
+    }
+  }
+
+  async function markShopping(name: string) {
+    if (perItem[name]) return;
+    setActionError(null);
+    try {
+      await api.shoppingFromMissing([name]);
+      setPerItem((p) => ({ ...p, [name]: "shopping" }));
+    } catch (err) {
+      setActionError(String(err));
+    }
+  }
 
   const stars =
     recipe.difficulty === "쉬움" ? 3 :
@@ -213,20 +237,44 @@ function RecipeCard({
         <div className="space-y-4 border-t border-gray-100 p-4">
           <div>
             <h3 className="mb-2 text-xs font-semibold text-gray-700">재료</h3>
-            <ul className="space-y-1 text-sm">
+            <ul className="space-y-1.5 text-sm">
               {recipe.ingredients.map((ing) => {
                 const isMissing = missing.has(ing);
                 const hasSub = isMissing && subs[ing];
+                const handled = perItem[ing];
                 return (
-                  <li key={ing} className="flex items-start gap-2">
-                    <span>
-                      {hasSub ? "🟡" : isMissing ? "🔴" : "🟢"}
-                    </span>
-                    <span className={isMissing ? "text-gray-500" : ""}>
+                  <li key={ing} className="flex items-center gap-2 flex-wrap">
+                    <span>{hasSub ? "🟡" : isMissing ? (handled ? "✓" : "🔴") : "🟢"}</span>
+                    <span className={isMissing && !handled ? "text-gray-500" : ""}>
                       {hasSub ? <s>{ing}</s> : ing}
                       {hasSub && " → 대체 가능"}
-                      {isMissing && !hasSub && " (부족)"}
+                      {isMissing && !hasSub && !handled && " (부족)"}
+                      {handled === "owned" && (
+                        <span className="ml-1 text-xs text-brand-dark">→ 보유 재료에 추가됨</span>
+                      )}
+                      {handled === "shopping" && (
+                        <span className="ml-1 text-xs text-amber-700">→ 장보기에 추가됨</span>
+                      )}
                     </span>
+                    {/* 부족 + 대체불가 + 미처리 → 두 액션 버튼 */}
+                    {isMissing && !hasSub && !handled && (
+                      <span className="ml-auto flex gap-1.5">
+                        <button
+                          onClick={() => markOwned(ing)}
+                          className="rounded-md border border-brand bg-brand-soft px-2 py-1 text-[11px] font-medium text-brand-dark active:bg-brand active:text-white"
+                          title={`${ing}를 보유 재료에 추가`}
+                        >
+                          ✓ 있음
+                        </button>
+                        <button
+                          onClick={() => markShopping(ing)}
+                          className="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 active:bg-amber-500 active:text-white"
+                          title={`${ing}를 장보기에 추가`}
+                        >
+                          🛒 장보기
+                        </button>
+                      </span>
+                    )}
                   </li>
                 );
               })}
