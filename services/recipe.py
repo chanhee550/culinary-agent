@@ -68,7 +68,7 @@ def recommend_recipes(ingredients: list[str], max_missing: int = 2,
 
     message = client.messages.create(
         model=_model(),
-        max_tokens=2048,
+        max_tokens=3500,  # Haiku 4.5 5개 레시피 + 상세 instructions가 1700~2000 토큰. 마진 확보.
         messages=[
             {
                 "role": "user",
