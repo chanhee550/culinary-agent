@@ -12,8 +12,12 @@ const TABS = [
   { href: "/shopping", label: "장보기", icon: ShoppingCart },
 ] as const;
 
+const HIDDEN_PATHS = ["/login"];
+
 export default function BottomNav() {
   const pathname = usePathname();
+  const hidden = HIDDEN_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  if (hidden) return null;
 
   return (
     <nav

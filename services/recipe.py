@@ -5,6 +5,7 @@ from functools import lru_cache
 
 import anthropic
 
+from db.database import LEGACY_USER_ID
 from db.repository import get_profile, get_expiring_ingredients
 from services.substitution import load_substitutions, find_all_substitutable
 
@@ -21,15 +22,16 @@ def _model() -> str:
 
 
 def recommend_recipes(ingredients: list[str], max_missing: int = 2,
-                      cuisine_filter: str = "", taste_filter: str = "") -> list[dict]:
+                      cuisine_filter: str = "", taste_filter: str = "",
+                      user_id: int = LEGACY_USER_ID) -> list[dict]:
     """보유 재료 기반으로 레시피를 추천합니다. 프로필 정보를 자동 반영합니다."""
     client = _client()
 
     # 프로필 로드
-    profile = get_profile()
+    profile = get_profile(user_id=user_id)
 
     # 유통기한 임박 재료 우선 사용
-    expiring = get_expiring_ingredients(days=3)
+    expiring = get_expiring_ingredients(days=3, user_id=user_id)
     expiring_names = [ing.name for ing in expiring if ing.name in ingredients]
 
     substitutions = load_substitutions()
