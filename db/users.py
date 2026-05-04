@@ -14,6 +14,9 @@ class EmailAlreadyExists(Exception):
     """이미 다른 인증 방식으로 가입된 이메일입니다."""
 
 
+WARNING_LIMIT = 3  # 누적 경고가 이 값에 도달하면 계정 강제 삭제
+
+
 def _row_to_user(row) -> User | None:
     if row is None:
         return None
@@ -25,6 +28,15 @@ def _row_to_user(row) -> User | None:
         display_name=row["display_name"],
         created_at=row["created_at"],
     )
+
+
+def get_warning_count(user_id: int) -> int:
+    conn = get_connection()
+    row = conn.execute(
+        "SELECT warning_count FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    conn.close()
+    return row["warning_count"] if row else 0
 
 
 def get_user_by_id(user_id: int) -> User | None:
@@ -99,6 +111,27 @@ def update_display_name(user_id: int, display_name: str):
 
 class CannotDeleteLegacyUser(Exception):
     """LEGACY_USER_ID(1)는 Streamlit 폴백/시드용 더미 계정이라 삭제하지 않습니다."""
+
+
+def increment_warning(user_id: int) -> tuple[int, bool]:
+    """경고 +1. (new_count, should_delete) 반환.
+
+    LEGACY_USER_ID는 시스템 더미라 경고/삭제에서 제외.
+    실제 계정 삭제는 호출자가 책임 — 디스크 정리 등 부수 작업을 함께 처리할 수 있도록.
+    """
+    if user_id == LEGACY_USER_ID:
+        return 0, False
+    conn = get_connection()
+    conn.execute(
+        "UPDATE users SET warning_count = warning_count + 1 WHERE id = ?", (user_id,)
+    )
+    row = conn.execute(
+        "SELECT warning_count FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    conn.commit()
+    new_count = row["warning_count"] if row else 0
+    conn.close()
+    return new_count, new_count >= WARNING_LIMIT
 
 
 def delete_user(user_id: int) -> None:

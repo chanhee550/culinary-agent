@@ -2,7 +2,9 @@
 __pycache__/
 *.pyc
 data/culinary.db
+data/uploads/
 .streamlit/secrets.toml
+.claude/
 
 # Node.js (Streamlit AX 테스트용)
 ax-tests/node_modules/

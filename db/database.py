@@ -45,9 +45,13 @@ def init_db():
             password_hash TEXT,
             google_sub TEXT UNIQUE,
             display_name TEXT,
+            warning_count INTEGER NOT NULL DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # 기존 users에 warning_count 누락 시 보강
+    if "warning_count" not in _columns(conn, "users"):
+        conn.execute("ALTER TABLE users ADD COLUMN warning_count INTEGER NOT NULL DEFAULT 0")
 
     # 레거시 데이터를 귀속시킬 더미 사용자 — 인증 엔드포인트는 이 계정을 발급하지 않음.
     conn.execute("""
@@ -128,6 +132,52 @@ def init_db():
         "INSERT OR IGNORE INTO user_profile (user_id) VALUES (?)",
         (LEGACY_USER_ID,),
     )
+
+    # 5) 게시판
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            saved_recipe_id INTEGER REFERENCES saved_recipes(id) ON DELETE SET NULL,
+            content TEXT NOT NULL,
+            rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+            comments_enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id)")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS post_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+            storage_path TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_post_images_post ON post_images(post_id, sort_order)")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS post_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            content TEXT NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_post_comments_post ON post_comments(post_id, created_at)")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS post_likes (
+            post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            liked_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (post_id, user_id)
+        )
+    """)
 
     conn.commit()
     conn.close()

@@ -1,14 +1,30 @@
 import type {
-  Ingredient, Recipe, ScanResult, SavedRecipe, ShoppingItem,
+  Ingredient, ModerationBlockedDetail, Post, PostComment,
+  Recipe, ScanResult, SavedRecipe, ShoppingItem,
 } from "./types";
 import { getToken, clearAuth, type AuthUser } from "./auth";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE = API_BASE;
+
+/** 백엔드에서 반환된 /uploads/... 상대 URL을 절대 URL로 변환. */
+export function absoluteUrl(path: string): string {
+  if (!path) return path;
+  if (/^https?:\/\//.test(path)) return path;
+  return `${BASE}${path.startsWith("/") ? "" : "/"}${path}`;
+}
 
 export class AuthRequired extends Error {
   constructor(public detail?: string) {
     super(detail || "auth_required");
     this.name = "AuthRequired";
+  }
+}
+
+export class ModerationBlocked extends Error {
+  constructor(public payload: ModerationBlockedDetail) {
+    super(payload.reason);
+    this.name = "ModerationBlocked";
   }
 }
 
@@ -35,6 +51,20 @@ async function request<T>(path: string, init?: RequestInit, opts?: { auth?: bool
       // 토큰 만료/무효 → 저장된 자격 정리. UI는 useAuth로 감지해 /login 리다이렉트.
       clearAuth();
       throw new AuthRequired(text);
+    }
+    if (res.status === 422 && text) {
+      // 모더레이션 차단 시 detail 객체가 그대로 들어옴
+      try {
+        const parsed = JSON.parse(text);
+        const d = parsed?.detail;
+        if (d && d.detail === "blocked") {
+          if (d.account_deleted) clearAuth();
+          throw new ModerationBlocked(d as ModerationBlockedDetail);
+        }
+      } catch (e) {
+        if (e instanceof ModerationBlocked) throw e;
+        // JSON parse 실패 — 일반 에러로 폴스루
+      }
     }
     throw new Error(`API ${res.status}: ${text || res.statusText}`);
   }
@@ -160,4 +190,54 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ items }),
     }),
+
+  // ----- Posts (게시판) -----
+  listPosts: (offset = 0, limit = 20) =>
+    request<Post[]>(`/posts?offset=${offset}&limit=${limit}`),
+
+  getPost: (id: number) => request<Post>(`/posts/${id}`),
+
+  createPost: (input: {
+    content: string;
+    rating: number;
+    comments_enabled: boolean;
+    saved_recipe_id?: number | null;
+    images: File[];
+  }) => {
+    const fd = new FormData();
+    fd.append("content", input.content);
+    fd.append("rating", String(input.rating));
+    fd.append("comments_enabled", input.comments_enabled ? "true" : "false");
+    if (input.saved_recipe_id != null) {
+      fd.append("saved_recipe_id", String(input.saved_recipe_id));
+    }
+    for (const f of input.images) fd.append("images", f);
+    return request<Post>("/posts", { method: "POST", body: fd });
+  },
+
+  patchPost: (id: number, body: { content?: string; comments_enabled?: boolean }) =>
+    request<Post>(`/posts/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  deletePost: (id: number) =>
+    request<void>(`/posts/${id}`, { method: "DELETE" }),
+
+  toggleLike: (postId: number) =>
+    request<{ liked: boolean; like_count: number }>(`/posts/${postId}/like`, {
+      method: "POST",
+    }),
+
+  listComments: (postId: number) =>
+    request<PostComment[]>(`/posts/${postId}/comments`),
+
+  addComment: (postId: number, content: string) =>
+    request<PostComment>(`/posts/${postId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    }),
+
+  deleteComment: (commentId: number) =>
+    request<void>(`/comments/${commentId}`, { method: "DELETE" }),
+
+  myWarnings: () =>
+    request<{ warning_count: number; warning_limit: number }>("/me/warnings"),
 };

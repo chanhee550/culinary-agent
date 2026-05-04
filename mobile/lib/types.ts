@@ -67,3 +67,38 @@ export interface ShoppingItem {
   checked: boolean;
   added_at: string;
 }
+
+export interface Post {
+  id: number;
+  user_id: number;
+  author_name: string | null;
+  saved_recipe_id: number | null;
+  saved_recipe_name: string | null;
+  content: string;
+  rating: number;
+  comments_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+  like_count: number;
+  comment_count: number;
+  my_liked: boolean;
+  is_mine: boolean;
+  images: string[];
+}
+
+export interface PostComment {
+  id: number;
+  post_id: number;
+  user_id: number;
+  author_name: string | null;
+  content: string;
+  created_at: string;
+}
+
+export interface ModerationBlockedDetail {
+  detail: "blocked";
+  reason: string;
+  warning_count: number;
+  warning_limit: number;
+  account_deleted: boolean;
+}
