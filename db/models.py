@@ -2,6 +2,16 @@ from dataclasses import dataclass
 
 
 @dataclass
+class User:
+    id: int
+    email: str
+    password_hash: str | None
+    google_sub: str | None
+    display_name: str | None
+    created_at: str
+
+
+@dataclass
 class Ingredient:
     id: int | None
     name: str
@@ -43,3 +53,10 @@ class ShoppingItem:
     category: str
     checked: bool
     added_at: str
+
+
+@dataclass
+class DailyRecipes:
+    date: str           # ISO date "YYYY-MM-DD"
+    recipes: list[dict] # 추천 레시피 리스트 (3개)
+    generated_at: str

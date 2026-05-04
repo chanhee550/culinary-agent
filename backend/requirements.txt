@@ -1,0 +1,10 @@
+# 백엔드 전용 추가 의존성. 루트 requirements.txt와 함께 설치하세요:
+#   pip install -r requirements.txt -r backend/requirements.txt
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.30.0,<1.0.0
+python-multipart>=0.0.9
+# 인증
+bcrypt>=4.0.0,<5.0.0
+python-jose[cryptography]>=3.3.0,<4.0.0
+google-auth>=2.30.0,<3.0.0
+email-validator>=2.0.0,<3.0.0

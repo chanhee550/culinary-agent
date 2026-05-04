@@ -1,7 +1,12 @@
 import streamlit as st
 from dotenv import load_dotenv
 from db.database import init_db
-from db.repository import get_all_ingredients, get_expiring_ingredients, get_shopping_list, get_profile
+from db.repository import (
+    get_all_ingredients, get_expiring_ingredients, get_shopping_list, get_profile,
+    get_ingredient_names, get_today_recipes, save_today_recipes, clear_today_recipes,
+    prune_old_daily_recipes,
+)
+from services.recipe import recommend_recipes
 from styles import apply_global_styles
 from i18n import t, language_selector
 
@@ -81,6 +86,78 @@ st.sidebar.markdown("---")
 
 st.title(t("app_title"))
 st.markdown(t("app_subtitle"))
+
+# --- 오늘의 레시피 ---
+prune_old_daily_recipes(keep_days=7)
+
+st.markdown(f"""
+<div style="background:linear-gradient(135deg,#fff8e1 0%,#ffe9c2 100%); border-radius:16px; padding:1rem 1.2rem; margin:1.2rem 0 0.8rem; font-family:'Noto Sans KR',sans-serif;">
+    <div style="font-weight:700; font-size:1.1rem; color:#5d4037;">{t("today_recipes_title")}</div>
+    <div style="font-size:0.85rem; color:#7b6a5d; margin-top:2px;">{t("today_recipes_subtitle")}</div>
+</div>
+""", unsafe_allow_html=True)
+
+_today_recipes = get_today_recipes()
+_ing_names = get_ingredient_names()
+
+if _today_recipes is None and not _ing_names:
+    st.info(t("today_recipes_empty"))
+elif _today_recipes is None:
+    # 첫 방문 (오늘 캐시 없음) → 사용자가 직접 트리거
+    if st.button(t("today_recipes_get"), type="primary", use_container_width=True, key="today_get"):
+        with st.spinner(t("today_recipes_loading")):
+            try:
+                generated = recommend_recipes(_ing_names, max_missing=2)[:3]
+            except Exception as e:
+                st.error(f"{t('today_recipes_failed')}: {e}")
+                generated = []
+        if generated:
+            save_today_recipes(generated)
+            st.rerun()
+else:
+    # 캐시된 오늘의 레시피 표시
+    cols = st.columns(min(len(_today_recipes), 3))
+    for idx, recipe in enumerate(_today_recipes[:3]):
+        with cols[idx]:
+            with st.container(border=True):
+                st.markdown(f"**{recipe.get('name', '')}**")
+                if recipe.get("description"):
+                    st.caption(recipe["description"])
+                meta = []
+                if recipe.get("difficulty"):
+                    meta.append(recipe["difficulty"])
+                if recipe.get("time"):
+                    meta.append(f"🕐 {recipe['time']}")
+                if meta:
+                    st.caption(" · ".join(meta))
+
+                with st.expander(t("today_recipes_view")):
+                    if recipe.get("ingredients"):
+                        st.markdown(
+                            f"**{t('today_recipes_ingredients_label')}**: "
+                            + ", ".join(recipe["ingredients"])
+                        )
+                    if recipe.get("missing"):
+                        st.markdown(
+                            f"**{t('today_recipes_missing_label')}**: "
+                            + ", ".join(recipe["missing"])
+                        )
+                    if recipe.get("instructions"):
+                        st.markdown(f"**{t('today_recipes_steps_label')}**")
+                        for step in recipe["instructions"]:
+                            st.markdown(step)
+
+    refresh_col1, _refresh_col2 = st.columns([1, 4])
+    with refresh_col1:
+        if st.button(
+            t("today_recipes_refresh"),
+            help=t("today_recipes_refresh_help"),
+            key="today_refresh",
+        ):
+            clear_today_recipes()
+            st.rerun()
+
+st.markdown("---")
 
 # 카드 버튼 스타일
 st.markdown("""

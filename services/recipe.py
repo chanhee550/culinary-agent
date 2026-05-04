@@ -1,23 +1,37 @@
 import json
 import os
 import re
+from functools import lru_cache
 
 import anthropic
 
+from db.database import LEGACY_USER_ID
 from db.repository import get_profile, get_expiring_ingredients
 from services.substitution import load_substitutions, find_all_substitutable
 
+DEFAULT_RECIPE_MODEL = "claude-haiku-4-5-20251001"
+
+
+@lru_cache(maxsize=1)
+def _client() -> anthropic.Anthropic:
+    return anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+
+def _model() -> str:
+    return os.getenv("RECIPE_MODEL", DEFAULT_RECIPE_MODEL)
+
 
 def recommend_recipes(ingredients: list[str], max_missing: int = 2,
-                      cuisine_filter: str = "", taste_filter: str = "") -> list[dict]:
+                      cuisine_filter: str = "", taste_filter: str = "",
+                      user_id: int = LEGACY_USER_ID) -> list[dict]:
     """보유 재료 기반으로 레시피를 추천합니다. 프로필 정보를 자동 반영합니다."""
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    client = _client()
 
     # 프로필 로드
-    profile = get_profile()
+    profile = get_profile(user_id=user_id)
 
     # 유통기한 임박 재료 우선 사용
-    expiring = get_expiring_ingredients(days=3)
+    expiring = get_expiring_ingredients(days=3, user_id=user_id)
     expiring_names = [ing.name for ing in expiring if ing.name in ingredients]
 
     substitutions = load_substitutions()
@@ -55,8 +69,8 @@ def recommend_recipes(ingredients: list[str], max_missing: int = 2,
     conditions_text = "\n".join(f"{i+1}. {c}" for i, c in enumerate(conditions))
 
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=4096,
+        model=_model(),
+        max_tokens=3500,  # Haiku 4.5 5개 레시피 + 상세 instructions가 1700~2000 토큰. 마진 확보.
         messages=[
             {
                 "role": "user",
@@ -77,6 +91,24 @@ def recommend_recipes(ingredients: list[str], max_missing: int = 2,
 3. 위의 대체 재료 정보를 참고하여, 대체 가능한 재료가 있다면 부족 재료에서 제외해주세요
 4. 난이도와 조리시간도 알려주세요
 5. 각 조리 단계는 구체적이고 따라하기 쉽게 작성하세요
+6. **기본 양념은 missing에 포함하지 마세요** — 사용자 가정에 항상 있다고 가정:
+   소금, 설탕, 후추, 간장, 식용유, 물, 통깨, 밥
+   (단, 보유 재료 목록에 명시된 다른 양념은 그대로 사용 가능)
+7. **🚫 환각 금지 — 가장 중요**:
+   - instructions(조리법)에 등장하는 모든 재료는 반드시 다음 중 하나여야 합니다:
+     (a) ingredients 배열에 명시된 재료
+     (b) 위 6번의 기본 양념 8가지 (소금/설탕/후추/간장/식용유/물/통깨/밥)
+   - ingredients에 없는 재료를 "다시마 육수", "양념장", "비법 소스" 같은
+     이름으로 슬쩍 instructions에 끼워넣지 마세요
+   - 전통 레시피가 추가 재료를 요구하면 → missing에 명시하거나, 그 재료
+     없이 만들 수 있는 변형 레시피로 작성하세요
+   - ❌ BAD: ingredients=["갈비"], instructions=["1. 다시마와 양파로 육수를 내고..."]
+     (다시마, 양파가 ingredients에도 missing에도 없음)
+   - ✅ GOOD: ingredients=["갈비"], missing=["다시마","양파"], instructions=["1. 다시마와 양파로 육수를 내고..."]
+     (사용된 재료가 모두 ingredients+missing에 있음)
+   - ✅ GOOD: ingredients=["갈비"], instructions=["1. 갈비를 물에 30분 담가 핏물을 빼고..."]
+     (기본 양념 "물"만 사용, ingredients 재료만 사용)
+   - 작성 후 self-check: instructions의 모든 재료가 ingredients/missing/기본양념에 있는지 확인하세요
 
 ## 응답 형식
 다음 JSON 배열로만 반환하세요 (다른 텍스트 없이):
