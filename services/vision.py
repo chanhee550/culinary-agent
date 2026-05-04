@@ -1,12 +1,13 @@
-"""Vision: 냉장고 사진 → 재료 인식.
+"""Vision: 냉장고 사진 → 재료 인식 (정확도 최우선 모드).
 
-통합 (master + v0-mobile):
-- 이미지 전처리 (밝기/대비/선명도 보정) — 어두운 냉장고 내부 인식률 향상
-- 이미지 압축 (5MB API 제한 대응)
+- 적응형 이미지 전처리 (밝기/대비를 사진 통계 기반으로 결정)
+- 이미지 압축 (해상도 2048, 품질 하한 75 — 라벨/디테일 최대 보존)
 - Level 2 프롬프트: 확정 재료(confirmed)와 통/병 등 불확실 항목(unknowns) 분리 반환
+- Extended thinking: 모델이 실제로 생각한 후 답변 (한국 식재료 디스앰비큐에이션 정확도↑)
+- 2-pass 검증: confirmed 재료를 동일 사진에 대해 재검증, 의심 시 unknowns로 강등
 - 다중 이미지 병렬 분석 (ThreadPoolExecutor)
 - 클라이언트 인스턴스 캐싱 (TLS 핸드셰이크 절약)
-- 모델 환경변수 토글 (VISION_MODEL, 기본 Haiku 4.5)
+- 모델 환경변수 토글 (VISION_MODEL, 기본 Opus 4.7 — vision 정확도 최우선)
 """
 import base64
 import io
@@ -17,12 +18,13 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
 import anthropic
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageStat
 
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL = "claude-opus-4-7"
 MAX_IMAGE_BYTES = 3_500_000  # base64 인코딩 시 ~4.7MB, API 제한 5MB 이하
-MAX_DIMENSION = 1600
+MAX_DIMENSION = 2048
 PARALLEL_WORKERS = 5
+THINKING_BUDGET = 2048  # extended thinking 토큰 예산 (vision 디스앰비큐에이션용)
 
 PROMPT = """당신은 한국 식재료 인식 전문가입니다. 이 사진을 주의 깊게 분석하여 보이는 모든 식재료를 분류해주세요.
 
@@ -95,18 +97,40 @@ def _model() -> str:
 
 
 def enhance_image(image_bytes: bytes) -> bytes:
-    """밝기/대비/선명도 보정으로 인식률 향상."""
+    """적응형 보정. 사진 통계(평균 밝기·표준편차)로 보정 강도를 결정."""
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    img = ImageEnhance.Brightness(img).enhance(1.15)
-    img = ImageEnhance.Contrast(img).enhance(1.20)
+
+    stat = ImageStat.Stat(img.convert("L"))
+    mean = stat.mean[0]      # 0-255 평균 밝기
+    stddev = stat.stddev[0]  # 명암 분산 = 대비 척도
+
+    # 어두울수록 더 밝게, 이미 밝으면 그대로
+    if mean < 100:
+        brightness_factor = 1.30
+    elif mean < 140:
+        brightness_factor = 1.15
+    else:
+        brightness_factor = 1.00
+
+    # 평탄(저대비)할수록 대비 강화
+    if stddev < 40:
+        contrast_factor = 1.30
+    elif stddev < 60:
+        contrast_factor = 1.15
+    else:
+        contrast_factor = 1.05
+
+    img = ImageEnhance.Brightness(img).enhance(brightness_factor)
+    img = ImageEnhance.Contrast(img).enhance(contrast_factor)
     img = ImageEnhance.Sharpness(img).enhance(1.30)
+
     buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=90)
+    img.save(buf, format="JPEG", quality=92)
     return buf.getvalue()
 
 
 def compress_image(image_bytes: bytes, max_bytes: int = MAX_IMAGE_BYTES) -> bytes:
-    """API 제한 이하로 압축. 해상도 축소 후 단계적 품질 감소."""
+    """API 제한 이하로 압축. 해상도 축소 후 단계적 품질 감소 (하한 75)."""
     if len(image_bytes) <= max_bytes:
         return image_bytes
 
@@ -115,10 +139,10 @@ def compress_image(image_bytes: bytes, max_bytes: int = MAX_IMAGE_BYTES) -> byte
         ratio = MAX_DIMENSION / max(img.size)
         img = img.resize((int(img.size[0] * ratio), int(img.size[1] * ratio)), Image.LANCZOS)
 
-    for q in (85, 70, 55, 40, 30):
+    for q in (90, 85, 80, 75):
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=q)
-        if buf.tell() <= max_bytes or q == 30:
+        if buf.tell() <= max_bytes or q == 75:
             return buf.getvalue()
     return buf.getvalue()
 
@@ -133,21 +157,28 @@ def _extract_json_object(text: str) -> dict | None:
         return None
 
 
-def analyze_fridge_image(image_bytes: bytes, media_type: str = "image/jpeg") -> dict:
-    """단일 이미지 분석. 전처리 → 압축 → API 호출 → JSON 파싱.
+def _extract_text(message) -> str:
+    """Extended thinking이 활성화되면 content에 thinking 블록이 먼저 오므로 text 블록만 골라낸다."""
+    for block in message.content:
+        if getattr(block, "type", None) == "text":
+            return block.text.strip()
+    return ""
 
-    Returns:
-        {"confirmed": [{"name", "category", "quantity"}],
-         "unknowns": [{"description", "guess", "location"}]}
-    """
-    image_bytes = enhance_image(image_bytes)
-    image_bytes = compress_image(image_bytes)
-    image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
 
-    message = _client().messages.create(
-        model=_model(),
-        max_tokens=2048,
-        messages=[
+def _verify_enabled() -> bool:
+    return os.getenv("VISION_VERIFY", "true").lower() not in ("false", "0", "no")
+
+
+def _thinking_enabled() -> bool:
+    return os.getenv("VISION_THINKING", "true").lower() not in ("false", "0", "no")
+
+
+def _create_message(image_data: str, prompt_text: str, max_tokens: int) -> object:
+    """Vision API 호출 — extended thinking 토글 가능."""
+    kwargs = {
+        "model": _model(),
+        "max_tokens": max_tokens,
+        "messages": [
             {
                 "role": "user",
                 "content": [
@@ -159,21 +190,114 @@ def analyze_fridge_image(image_bytes: bytes, media_type: str = "image/jpeg") -> 
                             "data": image_data,
                         },
                     },
-                    {"type": "text", "text": PROMPT},
+                    {"type": "text", "text": prompt_text},
                 ],
             }
         ],
-    )
+    }
+    if _thinking_enabled():
+        kwargs["thinking"] = {"type": "enabled", "budget_tokens": THINKING_BUDGET}
+    return _client().messages.create(**kwargs)
 
-    response_text = message.content[0].text.strip()
-    parsed = _extract_json_object(response_text)
+
+VERIFY_PROMPT_TEMPLATE = """이전 분석에서 이 사진에서 다음 재료들을 'confirmed'(85% 이상 확신)로 식별했습니다:
+
+{confirmed_list}
+
+각 항목을 사진과 다시 면밀히 비교해 검증하세요.
+
+## 검증 기준
+- 정말로 그 재료가 사진에 보이는가? 색상만 비슷한 다른 물체는 아닌가?
+- 한국 식재료 디스앰비큐에이션 다시 확인:
+  * 노란 타원형 → 바나나가 아니라 참외일 가능성
+  * 작은 빨간 구형 → 계란/체리가 아니라 방울토마토일 가능성
+  * 작은 흰 알맹이 → 양파가 아니라 마늘일 가능성
+  * 흰 길쭉이 → 무가 아니라 대파 흰 부분일 가능성
+  * 작은 초록 잎 → 시금치가 아니라 깻잎일 가능성
+  * 빨간 양념 채소 → 김치 단정 금지 (깍두기/총각김치/오이무침일 수 있음)
+- 통/병/포장에 가려져 라벨로만 식별한 경우, 라벨이 실제로 명확히 보이는지 재확인
+- 조금이라도 의심스러우면 즉시 unknowns로 강등 (재현율보다 정밀도 우선)
+
+## 응답 형식
+JSON으로만 반환 (다른 텍스트 없이):
+{{
+  "verified": [
+    {{"name": "재료명", "category": "카테고리", "quantity": "수량"}}
+  ],
+  "rejected": [
+    {{"name": "원본명", "reason": "왜 의심스러운지 한 줄"}}
+  ]
+}}
+"""
+
+
+def _verify_confirmed(image_data: str, confirmed: list[dict]) -> tuple[list[dict], list[dict]]:
+    """2-pass 검증: confirmed가 정말 사진에 있는지 같은 모델이 다시 본다.
+
+    Returns:
+        (verified_confirmed, rejected_as_unknowns)
+        rejected는 unknowns 형식으로 변환되어 반환된다.
+    """
+    if not confirmed:
+        return [], []
+
+    confirmed_list_text = "\n".join(
+        f"- {item.get('name', '?')} (카테고리: {item.get('category', '?')})"
+        for item in confirmed
+    )
+    prompt_text = VERIFY_PROMPT_TEMPLATE.format(confirmed_list=confirmed_list_text)
+
+    try:
+        message = _create_message(image_data, prompt_text, max_tokens=3072)
+    except anthropic.APIError:
+        # 검증 실패 시 원본 confirmed 유지 (fail-safe)
+        return confirmed, []
+
+    parsed = _extract_json_object(_extract_text(message))
+    if not parsed:
+        return confirmed, []
+
+    verified = parsed.get("verified", []) or []
+    rejected_raw = parsed.get("rejected", []) or []
+    rejected_as_unknowns = [
+        {
+            "description": f"{r.get('name', '')} — 검증에서 의심됨: {r.get('reason', '')}",
+            "guess": r.get("name", ""),
+            "location": "",
+        }
+        for r in rejected_raw
+        if r.get("name")
+    ]
+    return verified, rejected_as_unknowns
+
+
+def analyze_fridge_image(image_bytes: bytes, media_type: str = "image/jpeg") -> dict:
+    """단일 이미지 분석. 전처리 → 압축 → 1차 식별 → 2차 검증.
+
+    Returns:
+        {"confirmed": [{"name", "category", "quantity"}],
+         "unknowns": [{"description", "guess", "location"}]}
+    """
+    image_bytes = enhance_image(image_bytes)
+    image_bytes = compress_image(image_bytes)
+    image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
+
+    # 1차: 식별. extended thinking 사용 시 max_tokens는 thinking 예산 + 출력 마진을 포함해야 함.
+    message = _create_message(image_data, PROMPT, max_tokens=THINKING_BUDGET + 2048)
+    parsed = _extract_json_object(_extract_text(message))
     if not parsed:
         return {"confirmed": [], "unknowns": []}
 
-    return {
-        "confirmed": parsed.get("confirmed", []) or [],
-        "unknowns": parsed.get("unknowns", []) or [],
-    }
+    confirmed = parsed.get("confirmed", []) or []
+    unknowns = parsed.get("unknowns", []) or []
+
+    # 2차: confirmed 검증. 같은 사진을 다시 보고 의심스러운 항목을 unknowns로 강등.
+    if _verify_enabled() and confirmed:
+        verified, rejected = _verify_confirmed(image_data, confirmed)
+        confirmed = verified
+        unknowns = list(unknowns) + rejected
+
+    return {"confirmed": confirmed, "unknowns": unknowns}
 
 
 def analyze_multiple_images(images: list[tuple[bytes, str]]) -> dict:
