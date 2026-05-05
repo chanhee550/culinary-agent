@@ -18,18 +18,21 @@ HTTP 엔드포인트를 노출합니다. Streamlit 앱과 SQLite를 공유합니
 """
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import anthropic
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
 from db.database import init_db  # noqa: E402
 from backend.routers import auth as auth_router  # noqa: E402
 from backend.routers import ingredients as ingredients_router  # noqa: E402
+from backend.routers import posts as posts_router  # noqa: E402
 from backend.routers import recipes as recipes_router  # noqa: E402
 from backend.routers import shopping as shopping_router  # noqa: E402
 
@@ -87,3 +90,9 @@ app.include_router(auth_router.router)
 app.include_router(ingredients_router.router)
 app.include_router(recipes_router.router)
 app.include_router(shopping_router.router)
+app.include_router(posts_router.router)
+
+# 게시판 첨부 이미지 정적 서빙. 디렉토리는 init 때 생성됨.
+_UPLOADS_DIR = Path(__file__).resolve().parents[1] / "data" / "uploads"
+_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(_UPLOADS_DIR)), name="uploads")

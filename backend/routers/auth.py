@@ -133,11 +133,17 @@ def delete_me(user: CurrentUser):
     """계정 + 모든 데이터 영구 삭제 (Play Store 정책 필수).
 
     cascade 규칙으로 ingredients/user_profile/saved_recipes/shopping_list/daily_recipes
-    가 자동으로 함께 삭제됩니다. 클라이언트는 응답 후 토큰/유저 캐시를 비워야 합니다.
+    /posts/post_images/post_comments/post_likes 가 함께 삭제됩니다.
+    게시글 첨부 이미지는 디스크에서도 정리합니다.
     """
+    # cascade로 post_images 행이 사라지기 전에 디스크 경로 확보
+    from db.posts import get_user_image_paths
+    from backend.routers.posts import delete_image_files_from_disk
+
+    paths = get_user_image_paths(user.id)
     try:
         delete_user(user.id)
     except CannotDeleteLegacyUser:
-        # 운영 중 발생하면 안 되는 케이스 — 로그인 발급 자체가 LEGACY_USER_ID에 대해선 일어나지 않음.
         raise HTTPException(status_code=403, detail="cannot_delete_system_account")
+    delete_image_files_from_disk(paths)
     return None

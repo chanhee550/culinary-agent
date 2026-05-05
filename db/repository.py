@@ -99,11 +99,21 @@ def upsert_ingredients(items: list[dict], source: str = "scan",
     conn = get_connection()
     for item in items:
         conn.execute(
-            """INSERT INTO ingredients (user_id, name, category, source)
-               VALUES (?, ?, ?, ?)
+            """INSERT INTO ingredients (user_id, name, category, quantity, expiry_date, source)
+               VALUES (?, ?, ?, ?, ?, ?)
                ON CONFLICT(user_id, name) DO UPDATE SET
-                   category = excluded.category""",
-            (user_id, item["name"], item.get("category", "기타"), source),
+                   category = excluded.category,
+                   quantity = COALESCE(excluded.quantity, ingredients.quantity),
+                   expiry_date = COALESCE(excluded.expiry_date, ingredients.expiry_date),
+                   source = excluded.source""",
+            (
+                user_id,
+                item["name"],
+                item.get("category", "기타"),
+                item.get("quantity"),
+                item.get("expiry_date"),
+                source,
+            ),
         )
     conn.commit()
     conn.close()

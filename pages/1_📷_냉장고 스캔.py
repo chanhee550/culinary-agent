@@ -12,6 +12,14 @@ apply_global_styles()
 CATEGORIES = ["채소", "과일", "육류", "해산물", "유제품", "계란",
               "양념/소스", "곡류/면", "음료", "냉동식품", "가공식품", "기타"]
 
+SCAN_SHOTS = [
+    ("전체", "냉장고 문을 열고 전체가 보이게 1장"),
+    ("선반", "각 선반을 가까이서 1장씩"),
+    ("도어", "문쪽 포켓의 병·소스 라벨이 보이게 1장"),
+    ("서랍", "야채칸/냉동칸을 열고 1장"),
+    ("라벨", "이름이 작은 통·병은 라벨 근접 사진 추가"),
+]
+
 st.header("📷 냉장고 스캔")
 st.caption("냉장고 사진을 업로드하면 AI가 재료를 자동으로 인식합니다. "
            "통/병에 담긴 음식은 직접 알려주세요.")
@@ -21,14 +29,32 @@ if not os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY") == "your
     st.warning("`.env` 파일에 `ANTHROPIC_API_KEY`를 설정해주세요.")
     st.stop()
 
+# --- 촬영 가이드 ---
+with st.container(border=True):
+    st.markdown("**정확도를 높이는 촬영 순서**")
+    guide_cols = st.columns(len(SCAN_SHOTS))
+    for idx, (title, desc) in enumerate(SCAN_SHOTS):
+        with guide_cols[idx]:
+            st.markdown(f"**{idx + 1}. {title}**")
+            st.caption(desc)
+
+st.info("권장: 최소 4장 이상. 전체 사진만으로는 작은 재료와 라벨이 누락될 수 있어요.")
+
 # --- 이미지 업로드 ---
 uploaded_files = st.file_uploader(
-    "냉장고 사진 업로드 (여러 장 가능)",
+    "냉장고 사진 업로드 (가이드 순서대로 여러 장 권장)",
     type=["jpg", "jpeg", "png"],
     accept_multiple_files=True,
 )
 
 if uploaded_files:
+    if len(uploaded_files) < 4:
+        st.warning(
+            f"현재 {len(uploaded_files)}장입니다. 선반/도어/서랍 근접 사진을 추가하면 인식 정확도가 올라갑니다."
+        )
+    else:
+        st.success(f"{len(uploaded_files)}장이 준비됐습니다. 전체와 근접 사진이 함께 있으면 가장 안정적이에요.")
+
     # 미리보기
     cols = st.columns(min(len(uploaded_files), 3))
     for i, f in enumerate(uploaded_files):
@@ -48,6 +74,8 @@ if uploaded_files:
 
         for err in result.get("errors", []):
             st.warning(err)
+        for warning in result.get("quality_warnings", []):
+            st.info(warning)
 
         if not result["confirmed"] and not result["unknowns"]:
             st.error("감지된 재료가 없습니다. 다른 사진을 시도해보세요.")
