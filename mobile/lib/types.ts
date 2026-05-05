@@ -25,6 +25,7 @@ export interface ScanResult {
   confirmed: ConfirmedItem[];
   unknowns: UnknownItem[];
   errors?: string[];
+  quality_warnings?: string[];
 }
 
 export interface Recipe {
@@ -39,8 +40,8 @@ export interface Recipe {
 }
 
 export const CATEGORIES = [
-  "채소", "과일", "육류", "해산물", "유제품",
-  "양념/소스", "곡류/면", "음료", "냉동식품", "기타",
+  "채소", "과일", "육류", "해산물", "유제품", "계란",
+  "양념/소스", "곡류/면", "음료", "냉동식품", "가공식품", "기타",
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];

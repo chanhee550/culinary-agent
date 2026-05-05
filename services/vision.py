@@ -18,13 +18,14 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 
 import anthropic
-from PIL import Image, ImageEnhance, ImageStat
+from PIL import Image, ImageEnhance, ImageFilter, ImageStat
 
 DEFAULT_MODEL = "claude-opus-4-7"
 MAX_IMAGE_BYTES = 3_500_000  # base64 인코딩 시 ~4.7MB, API 제한 5MB 이하
 MAX_DIMENSION = 2048
 PARALLEL_WORKERS = 5
 THINKING_BUDGET = 2048  # extended thinking 토큰 예산 (vision 디스앰비큐에이션용)
+MIN_RECOMMENDED_EDGE = 800
 
 PROMPT = """당신은 한국 식재료 인식 전문가입니다. 이 사진을 주의 깊게 분석하여 보이는 모든 식재료를 분류해주세요.
 
@@ -145,6 +146,37 @@ def compress_image(image_bytes: bytes, max_bytes: int = MAX_IMAGE_BYTES) -> byte
         if buf.tell() <= max_bytes or q == 75:
             return buf.getvalue()
     return buf.getvalue()
+
+
+def _image_quality_warnings(image_bytes: bytes) -> list[str]:
+    """분석은 계속하되, 정확도를 떨어뜨릴 수 있는 촬영 문제를 사용자에게 알려준다."""
+    try:
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    except Exception:
+        return ["이미지를 열 수 없어 품질을 확인하지 못했습니다."]
+
+    warnings: list[str] = []
+    width, height = img.size
+    if min(width, height) < MIN_RECOMMENDED_EDGE:
+        warnings.append(
+            f"해상도가 낮습니다 ({width}x{height}). 라벨과 작은 재료는 더 가까이 찍으면 좋아요."
+        )
+
+    gray = img.convert("L")
+    stat = ImageStat.Stat(gray)
+    mean = stat.mean[0]
+    contrast = stat.stddev[0]
+    if mean < 55:
+        warnings.append("사진이 어둡습니다. 냉장고 조명을 켜거나 한 장 더 밝게 찍어주세요.")
+    if contrast < 18:
+        warnings.append("대비가 낮아 포장지와 투명 용기가 흐릿하게 보일 수 있습니다.")
+
+    # Pillow만으로 계산하는 가벼운 선명도 지표. 낮으면 흔들림/초점 문제 가능성이 큼.
+    edge_stat = ImageStat.Stat(gray.filter(ImageFilter.FIND_EDGES))
+    if edge_stat.stddev[0] < 12:
+        warnings.append("초점이 흐릴 수 있습니다. 손을 고정하고 선반별 근접 사진을 추가해보세요.")
+
+    return warnings
 
 
 def _extract_json_object(text: str) -> dict | None:
@@ -314,6 +346,11 @@ def analyze_multiple_images(images: list[tuple[bytes, str]]) -> dict:
         }
     """
     errors: list[str] = []
+    quality_warnings: list[str] = []
+
+    for idx, (image_bytes, _media_type) in enumerate(images):
+        for warning in _image_quality_warnings(image_bytes):
+            quality_warnings.append(f"사진 {idx + 1}: {warning}")
 
     def _safe(args: tuple[int, tuple[bytes, str]]) -> dict:
         idx, payload = args
@@ -349,4 +386,5 @@ def analyze_multiple_images(images: list[tuple[bytes, str]]) -> dict:
         "confirmed": list(merged_confirmed.values()),
         "unknowns": merged_unknowns,
         "errors": errors,
+        "quality_warnings": quality_warnings,
     }
