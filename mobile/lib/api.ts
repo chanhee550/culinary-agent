@@ -1,5 +1,5 @@
 import type {
-  Ingredient, Recipe, ScanResult, SavedRecipe, ShoppingItem,
+  Ingredient, Recipe, RecipeContext, ScanResult, SavedRecipe, ShoppingItem, VoiceCommand,
 } from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -106,4 +106,25 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ items }),
     }),
+
+  voiceCommand: (audio: Blob, context?: RecipeContext) => {
+    const fd = new FormData();
+    fd.append("file", audio, "command.webm");
+    if (context) fd.append("recipe_context", JSON.stringify(context));
+    return request<VoiceCommand>("/voice/command", { method: "POST", body: fd });
+  },
+
+  tts: async (text: string) => {
+    const res = await fetch(`${BASE}/voice/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`API ${res.status}: ${body || res.statusText}`);
+    }
+    return res.blob();
+  },
 };

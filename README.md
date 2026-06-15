@@ -1,144 +1,281 @@
-# Culinary Agent
+# 오셰 (O'CHEF)
 
-냉장고 속 재료를 관리하고, AI 기반으로 맞춤 레시피를 추천받는 웹 애플리케이션입니다.
+냉장고 속 재료를 관리하고, Claude 기반 AI로 맞춤 레시피를 추천받는 음성 요리 도우미입니다. ASR · LLM · TTS 풀체인이 한국어로 동작합니다.
+
+현재 프로젝트는 세 가지 실행 표면을 함께 갖고 있습니다.
+
+- **Streamlit 웹 앱**: 로컬/프로토타입용 메인 UI
+- **FastAPI 백엔드**: 모바일 PWA가 호출하는 HTTP API
+- **Next.js 모바일 PWA**: 모바일 우선 UI, 추후 Android TWA 배포 가능
+
+---
 
 ## 주요 기능
 
 ### 1. 냉장고 스캔
-- 냉장고 사진을 업로드하면 Claude Vision AI가 재료를 자동 인식
-- 여러 장의 사진 동시 업로드 가능
-- 감지된 재료를 체크리스트로 확인 후 선택 저장
-- 중복 재료 자동 처리 (이미 있는 재료는 업데이트)
+
+- 냉장고 사진 여러 장 업로드
+- Claude Vision으로 재료 자동 인식
+- 확실한 재료(`confirmed`)와 통/병/반찬처럼 불확실한 항목(`unknowns`) 분리
+- 사용자가 확인/수정한 뒤 선택 저장
+- 같은 이름의 재료는 중복 생성 대신 업데이트
 
 ### 2. 재료 관리
+
 - 재료 수동 추가/수정/삭제
-- 카테고리별 분류 (채소, 육류, 양념/소스, 해산물 등 10개 카테고리)
-- 수량 관리
-- 카테고리별 필터링
+- 카테고리별 분류
+- 수량과 유통기한 관리
+- 유통기한 임박 재료 경고
 
 ### 3. 레시피 추천
-- 보유 재료 기반 AI 레시피 추천 (3~5개)
-- 부족 재료 허용 개수 조절 가능 (기본 2개)
-- 재료별 색상 코딩: 🟢보유 / 🟡대체가능 / 🔴부족
-- 상세 조리법, 난이도, 예상 조리시간 제공
 
-### 4. 대체 재료 안내
-- 20개 이상의 한식 소스/양념 대체 레시피 내장
-- 예: 참소스 → 간장+식초+설탕+물, 굴소스 → 간장+설탕+참치액
-- 레시피 추천 시 대체 가능한 재료 자동 표시
-- 비율과 사용법 안내 포함
+- 보유 재료 기반 Claude 레시피 추천
+- 허용할 부족 재료 개수 조절
+- 사용자 프로필 반영
+  - 요리 숙련도
+  - 선호 요리 종류
+  - 맛 선호
+  - 알레르기 제외
+- 유통기한 임박 재료 우선 활용
+- 부족 재료 중 대체 가능한 항목 자동 안내
+
+### 4. 저장 레시피
+
+- 마음에 드는 추천 레시피 저장
+- 저장한 레시피 다시 보기
+- 별점 평가
+- 삭제
+
+### 5. 장보기 목록
+
+- 부족 재료를 레시피에서 장보기 목록으로 추가
+- 수동 항목 추가
+- 구매 필요/구매 완료 체크
+- 완료 항목 일괄 삭제
+
+### 6. 오늘의 레시피
+
+- 보유 재료 기반으로 오늘의 추천 레시피 3개 생성
+- 날짜별 캐시 저장
+- 최근 캐시 자동 정리
 
 ---
 
 ## 기술 스택
 
-| 구분 | 기술 |
+| 영역 | 기술 |
 |------|------|
-| UI | Streamlit |
-| AI | Claude API (anthropic SDK) - Vision + Text |
-| DB | SQLite |
-| 언어 | Python 3.10+ |
+| Streamlit UI | Streamlit |
+| Mobile UI | Next.js 14, React, Tailwind CSS, next-pwa |
+| Backend API | FastAPI, Uvicorn |
+| AI | Anthropic Claude API |
+| Vision | Claude Vision + Pillow 이미지 전처리 |
+| ASR | OpenAI Whisper |
+| TTS | edge-tts, Microsoft Edge online voices |
+| DB | SQLite 기본, Firestore 일부 지원 |
+| 테스트 | Playwright + axe-core 접근성 테스트 |
 
 ---
 
 ## 프로젝트 구조
 
-```
+```text
 culinary-agent/
-├── app.py                     # Streamlit 진입점 (메인 페이지)
-├── requirements.txt           # 의존성 패키지
-├── .env                       # API 키 설정
+├── app.py                         # Streamlit 메인 페이지
+├── i18n.py                        # Streamlit 메인 페이지 중심 한/영 번역
+├── styles.py                      # Streamlit 전역 스타일
+├── requirements.txt               # Streamlit/AI 공통 Python 의존성
+├── .env.example                   # 환경변수 예시
 │
-├── db/
-│   ├── database.py            # SQLite 연결 및 테이블 초기화
-│   ├── models.py              # 데이터 모델 (Ingredient dataclass)
-│   └── repository.py          # CRUD 함수 (추가/수정/삭제/조회)
+├── pages/                         # Streamlit 세부 페이지
+│   ├── 1_📷_냉장고 스캔.py
+│   ├── 2_🥬_재료 관리.py
+│   ├── 3_🍽️_레시피 추천.py
+│   ├── 4_👤_프로필 설정.py
+│   ├── 5_📚_저장 레시피.py
+│   └── 6_🛒_장보기 목록.py
 │
 ├── services/
-│   ├── vision.py              # Claude Vision API - 이미지→재료 감지
-│   ├── recipe.py              # Claude API - 재료→레시피 추천
-│   └── substitution.py        # 대체 재료 검색 및 매칭 로직
+│   ├── vision.py                  # 이미지 분석
+│   ├── recipe.py                  # 레시피 추천
+│   └── substitution.py            # 대체 재료 매칭
 │
-├── pages/
-│   ├── 1_fridge_scan.py       # 냉장고 스캔 페이지
-│   ├── 2_ingredients.py       # 재료 관리 페이지
-│   └── 3_recipes.py           # 레시피 추천 페이지
+├── db/
+│   ├── database.py                # SQLite 연결/스키마
+│   ├── models.py                  # dataclass 모델
+│   ├── repository.py              # SQLite CRUD
+│   ├── storage.py                 # 저장소 선택기
+│   └── firestore_repo.py          # Firestore 재료 저장소 일부 구현
 │
+├── backend/
+│   ├── main.py                    # FastAPI 앱
+│   └── requirements.txt           # API 서버 추가 의존성
+│
+├── mobile/                        # Next.js PWA
+│   ├── app/
+│   ├── components/
+│   ├── lib/
+│   └── public/
+│
+├── ax-tests/                      # 접근성 자동 테스트
+├── android/                       # Android TWA 빌드 가이드
 └── data/
-    ├── substitutions.json     # 대체 재료 매핑 데이터 (20개+)
-    └── culinary.db            # SQLite DB (런타임 자동 생성)
+    ├── substitutions.json         # 대체 재료 데이터
+    └── culinary.db                # SQLite DB, 런타임 생성
 ```
 
 ---
 
-## 설치 및 실행
+## 환경변수
 
-### 1. 의존성 설치
-```bash
-cd culinary-agent
-pip install -r requirements.txt
-```
+`.env.example`을 참고해 `.env`를 만듭니다.
 
-### 2. API 키 설정
-`.env` 파일을 열어 Anthropic API 키를 입력합니다:
-```
+```env
 ANTHROPIC_API_KEY=sk-ant-xxxxx
+OPENAI_API_KEY=sk-xxxxx
+
+VISION_MODEL=claude-sonnet-4-6
+RECIPE_MODEL=claude-haiku-4-5-20251001
+OPENAI_TRANSCRIBE_MODEL=whisper-1
+EDGE_TTS_VOICE=ko-KR-SunHiNeural
+
+STORAGE_BACKEND=sqlite
 ```
 
-### 3. 실행
+주요 변수:
+
+- `ANTHROPIC_API_KEY`: Claude API 키
+- `OPENAI_API_KEY`: OpenAI 음성 전사 API 키
+- `VISION_MODEL`: 냉장고 사진 분석 모델
+- `RECIPE_MODEL`: 레시피 생성 모델
+- `OPENAI_TRANSCRIBE_MODEL`: 음성 명령 전사 모델, 기본값 `whisper-1`
+- `EDGE_TTS_VOICE`: 짧은 음성 응답에 사용할 edge-tts 한국어 음성
+- `STORAGE_BACKEND`: `sqlite` 또는 `firestore`
+
+> 현재 Firestore 모드는 재료 저장소 일부만 구현되어 있습니다. 저장 레시피, 장보기, 프로필 등은 SQLite repository를 직접 사용합니다.
+
+---
+
+## 실행 방법
+
+### 1. Streamlit 앱
+
 ```bash
+pip install -r requirements.txt
 streamlit run app.py
 ```
-브라우저에서 `http://localhost:8501`로 접속합니다.
+
+접속:
+
+```text
+http://localhost:8501
+```
+
+### 2. FastAPI 백엔드
+
+모바일 PWA를 실행하려면 백엔드가 먼저 떠 있어야 합니다.
+
+```bash
+pip install -r requirements.txt -r backend/requirements.txt
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+헬스 체크:
+
+```text
+http://localhost:8000/health
+```
+
+### 3. Next.js 모바일 PWA
+
+```bash
+cd mobile
+npm install
+npm run dev
+```
+
+접속:
+
+```text
+http://localhost:3000
+```
+
+기본 API 주소는 `http://localhost:8000`입니다. 다른 백엔드를 쓰려면 `mobile/.env.local`에 설정합니다.
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+또는 배포 환경에서는 `BACKEND_URL`을 설정하면 Next.js rewrite로 `/api/*` 프록시를 구성할 수 있습니다.
 
 ---
 
-## 개발 과정
+## API 개요
 
-### Phase 1: 프로젝트 기반 구축
-- 프로젝트 디렉토리 구조 생성
-- `requirements.txt`, `.env` 설정
-- SQLite 데이터베이스 레이어 구현 (`database.py`, `models.py`, `repository.py`)
-- `Ingredient` 모델: id, name(UNIQUE), category, quantity, added_at, source
-- UPSERT 전략으로 중복 재료 자동 처리
-- Streamlit 메인 페이지(`app.py`) 및 재료 관리 페이지(`2_ingredients.py`) 구현
-- 재료 추가/수정/삭제/필터 CRUD UI 완성
+FastAPI는 모바일 앱을 위한 HTTP 엔드포인트를 제공합니다.
 
-### Phase 2: 냉장고 스캔 (Claude Vision 연동)
-- `services/vision.py`: Claude Vision API를 통한 이미지 분석
-- 여러 이미지 동시 처리 및 재료 중복 제거 로직
-- `pages/1_fridge_scan.py`: 이미지 업로드 → 스캔 → 체크리스트 → 저장 UI
-- **코드 리뷰 후 버그 수정:**
-  - `repository.py`: ON CONFLICT 시 `lastrowid`가 0 반환되는 버그 → name 기반 조회로 수정
-  - `vision.py`: LLM 응답 JSON 파싱 강화 (정규식 추출 방식으로 변경)
-  - `vision.py`: 개별 이미지 분석 실패 시 전체 실패 방지 (try/except 추가)
-
-### Phase 3: 대체 재료 시스템
-- `data/substitutions.json`: 20개 한식 소스/양념 대체 레시피 데이터 구축
-  - 참소스, 굴소스, 미림, 쌈장, 데리야끼소스 등
-  - 각 항목에 구성 재료, 비율, 사용법 포함
-- `services/substitution.py`: 대체 가능 여부 판별 및 대체법 텍스트 생성 로직
-
-### Phase 4: 레시피 추천 (Claude API 연동)
-- `services/recipe.py`: 보유 재료 + 대체 재료 정보를 포함한 프롬프트로 Claude에 레시피 요청
-- 레시피별 부족 재료에 대해 대체 가능 여부 자동 보강
-- `pages/3_recipes.py`: 레시피 카드 UI
-  - 색상 코딩된 재료 목록 (보유/대체가능/부족)
-  - 접기/펼치기 형태의 상세 조리법
-  - 난이도, 조리시간 표시
-
-### Phase 5: 테스트 및 마무리
-- 전체 코드 리뷰 및 버그 수정
-- README.md 문서화
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/health` | 서버 상태 확인 |
+| POST | `/scan` | 이미지 여러 장 분석 |
+| GET | `/ingredients` | 재료 목록 |
+| POST | `/ingredients` | 재료 추가 |
+| POST | `/ingredients/bulk` | 스캔 결과 일괄 저장 |
+| PATCH | `/ingredients/{id}` | 재료 수정 |
+| DELETE | `/ingredients/{id}` | 재료 삭제 |
+| DELETE | `/ingredients` | 모든 재료 삭제 |
+| POST | `/recipes` | 레시피 추천 |
+| POST | `/voice/command` | 짧은 음성 명령 전사 및 조리 액션/응답문 변환 |
+| POST | `/voice/tts` | 짧은 확인 문장을 TTS mp3로 변환 |
+| GET | `/saved_recipes` | 저장 레시피 목록 |
+| POST | `/saved_recipes` | 레시피 저장 |
+| PATCH | `/saved_recipes/{id}/rating` | 별점 수정 |
+| DELETE | `/saved_recipes/{id}` | 저장 레시피 삭제 |
+| GET | `/shopping` | 장보기 목록 |
+| POST | `/shopping` | 장보기 항목 추가 |
+| PATCH | `/shopping/{id}/toggle` | 구매 완료 토글 |
+| DELETE | `/shopping/{id}` | 장보기 항목 삭제 |
+| DELETE | `/shopping/checked/all` | 완료 항목 일괄 삭제 |
+| POST | `/shopping/from_missing` | 부족 재료를 장보기로 추가 |
 
 ---
 
-## 주요 설계 결정
+## 접근성 테스트
 
-| 결정 | 이유 |
-|------|------|
-| Streamlit 선택 | Python만으로 빠른 프로토타이핑, 이미지 업로드/데이터 편집 내장 |
-| SQLite 선택 | 재료 중복 체크에 SQL UNIQUE 제약 활용, Python 기본 내장 |
-| JSON 파싱에 정규식 사용 | LLM 응답이 마크다운 펜스나 부가 텍스트를 포함할 수 있어 견고한 파싱 필요 |
-| 대체 재료를 JSON 파일로 관리 | 정적 참조 데이터로 별도 DB 불필요, 수동 확장 용이 |
-| 레시피 비저장 | 매번 현재 재료 기반으로 동적 생성, 즐겨찾기는 추후 확장 가능 |
+Streamlit 앱을 대상으로 axe-core 기반 접근성 테스트를 실행할 수 있습니다.
+
+```bash
+cd ax-tests
+npm install
+npm test
+```
+
+리포트까지 생성:
+
+```bash
+npm run test:report
+```
+
+테스트 대상 기본 주소는 `http://localhost:8501`입니다.
+
+---
+
+## Android 배포
+
+`mobile/` PWA를 배포한 뒤 Bubblewrap으로 Android TWA 앱 번들을 만들 수 있습니다.
+
+자세한 절차는 [android/README.md](android/README.md)를 참고하세요.
+
+---
+
+## 현재 구현 상태와 주의점
+
+- Streamlit 앱은 전체 핵심 흐름이 구현되어 있습니다.
+- 모바일 PWA는 FastAPI를 통해 스캔, 재료, 레시피, 저장 레시피, 장보기 기능을 제공합니다.
+- 모바일 레시피 상세 화면은 OpenAI Whisper 기반 음성 명령과 edge-tts 기반 짧은 확인 음성을 지원합니다.
+- `i18n.py`는 준비되어 있지만, Streamlit 개별 페이지의 다국어 적용은 아직 부분적입니다.
+- Firestore 저장소는 재료 관리 일부에만 연결되어 있습니다.
+- 모바일 재료 관리 화면은 현재 수량/카테고리 중심이며, Streamlit의 유통기한 UI와 완전히 동일하지 않습니다.
+- Claude 호출이 필요한 기능은 `.env`의 `ANTHROPIC_API_KEY`가 있어야 동작합니다.
+- 음성 명령 기능은 `.env`의 `OPENAI_API_KEY`가 있어야 동작합니다.
+- TTS는 무료 `edge-tts`를 사용하지만 Microsoft Edge online voices에 접속하므로 백엔드 서버의 네트워크 연결이 필요합니다.

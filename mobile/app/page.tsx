@@ -27,7 +27,7 @@ export default function HomePage() {
   return (
     <div className="px-5 pt-12">
       <header className="mb-6">
-        <p className="text-sm text-gray-500">🍳 Culinary Agent</p>
+        <p className="text-sm text-gray-500">🍳 오셰 · O'CHEF</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">
           오늘 뭐 해 먹지?
         </h1>

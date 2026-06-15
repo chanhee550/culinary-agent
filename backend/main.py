@@ -1,4 +1,4 @@
-"""Culinary Agent — Mobile API.
+"""O'CHEF — Mobile API.
 
 기존 services/, db/ 모듈을 그대로 재사용하여 모바일 앱(PWA/TWA)이 호출할 수 있는
 HTTP 엔드포인트를 노출합니다. Streamlit 앱과 SQLite를 공유합니다.
@@ -15,9 +15,9 @@ from contextlib import asynccontextmanager
 
 import anthropic
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 load_dotenv()
@@ -47,7 +47,9 @@ from db.repository import (  # noqa: E402  (master 풀기능, storage 추상화 
     update_recipe_rating,
 )
 from services.recipe import recommend_recipes  # noqa: E402
+from services.speech import parse_cooking_command, synthesize_reply, transcribe_audio  # noqa: E402
 from services.vision import analyze_multiple_images  # noqa: E402
+from services.voice_intent import claude_route  # noqa: E402
 
 
 @asynccontextmanager
@@ -56,7 +58,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Culinary Agent API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="O'CHEF API", version="0.1.0", lifespan=lifespan)
 
 # CORS — 모바일 PWA·로컬 dev 모두 허용. 프로덕션에선 도메인 화이트리스트로 좁히세요.
 allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
@@ -129,6 +131,15 @@ class RecipeRequest(BaseModel):
     max_missing: int = Field(default=2, ge=0, le=5)
     cuisine_filter: str = ""
     taste_filter: str = ""
+
+
+class VoiceCommandOut(BaseModel):
+    text: str
+    command: dict
+
+
+class TTSRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=200)
 
 
 # ---------- Endpoints ----------
@@ -228,6 +239,49 @@ def recipes(req: RecipeRequest):
         cuisine_filter=req.cuisine_filter,
         taste_filter=req.taste_filter,
     )
+
+
+# ---------- Voice Cooking Guide ----------
+
+@app.post("/voice/command", response_model=VoiceCommandOut)
+async def voice_command(
+    file: UploadFile = File(...),
+    recipe_context: str | None = Form(default=None),
+):
+    """Short voice command → transcription → cooking guide action.
+
+    Claude 라우터를 먼저 시도하고, 실패 시 regex parser 로 fallback 합니다.
+    recipe_context (JSON 문자열) 가 주어지면 자유 질문에 답할 수 있습니다.
+    """
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="오디오 파일이 필요합니다.")
+    if len(content) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="오디오 파일은 25MB 이하여야 합니다.")
+
+    filename = file.filename or "command.webm"
+    text = transcribe_audio(content, filename=filename)
+
+    ctx: dict | None = None
+    if recipe_context:
+        try:
+            parsed = json.loads(recipe_context)
+            if isinstance(parsed, dict):
+                ctx = parsed
+        except json.JSONDecodeError:
+            ctx = None
+
+    command = claude_route(text, ctx) or parse_cooking_command(text)
+    return VoiceCommandOut(text=text, command=command)
+
+
+@app.post("/voice/tts")
+async def voice_tts(req: TTSRequest):
+    """Short confirmation text → mp3 audio via edge-tts."""
+    audio = await synthesize_reply(req.text)
+    if not audio:
+        raise HTTPException(status_code=502, detail="TTS 음성 생성에 실패했습니다.")
+    return Response(content=audio, media_type="audio/mpeg")
 
 
 # ---------- Saved Recipes ----------

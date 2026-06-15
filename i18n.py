@@ -3,7 +3,7 @@ import streamlit as st
 TRANSLATIONS = {
     "ko": {
         # app.py
-        "app_title": "Culinary Agent",
+        "app_title": "오셰 (O'CHEF)",
         "app_subtitle": "냉장고 속 재료를 관리하고, 맞춤 레시피를 추천받으세요.",
         "fridge_scan": "냉장고 스캔",
         "fridge_scan_desc": "사진으로 재료 자동 인식",
@@ -153,7 +153,7 @@ TRANSLATIONS = {
         "language": "언어",
     },
     "en": {
-        "app_title": "Culinary Agent",
+        "app_title": "O'CHEF",
         "app_subtitle": "Manage your fridge ingredients and get personalized recipe recommendations.",
         "fridge_scan": "Fridge Scan",
         "fridge_scan_desc": "Auto-detect ingredients from photos",

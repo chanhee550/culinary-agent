@@ -1,6 +1,6 @@
 {
-  "name": "Culinary Agent",
-  "short_name": "Culinary",
+  "name": "오셰 (O'CHEF)",
+  "short_name": "O'CHEF",
   "description": "냉장고 속 재료를 관리하고 AI 레시피를 추천받으세요",
   "start_url": "/",
   "scope": "/",

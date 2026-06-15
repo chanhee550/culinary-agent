@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, ChefHat, Clock, Star, Bookmark, ShoppingCart, Check } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Loader2, ChefHat, Clock, Star, Bookmark, ShoppingCart, Check,
+  Mic, Square, ChevronLeft, ChevronRight, ListOrdered, RotateCcw,
+  Volume2, VolumeX,
+} from "lucide-react";
 import { api } from "@/lib/api";
-import type { Recipe } from "@/lib/types";
+import type { Recipe, RecipeContext } from "@/lib/types";
 
 export default function RecipesPage() {
   const [ingredients, setIngredients] = useState<string[]>([]);
@@ -117,8 +121,44 @@ function RecipeCard({
   const [saving, setSaving] = useState(false);
   const [shoppingAdded, setShoppingAdded] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [showAllSteps, setShowAllSteps] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [voiceText, setVoiceText] = useState("");
+  const [voiceHint, setVoiceHint] = useState("");
+  const [narrationOn, setNarrationOn] = useState(false);
+  const lastNarratedStepRef = useRef<number>(-1);
+  const [timerRemaining, setTimerRemaining] = useState(0);
+  const timerEndRef = useRef<number | null>(null);
+  const timerIntervalRef = useRef<number | null>(null);
+  const timerTimeoutRef = useRef<number | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const audioUrlRef = useRef<string | null>(null);
   // 부족 재료 항목별 처리 상태: ingredient name → 'owned' | 'shopping' | undefined
   const [perItem, setPerItem] = useState<Record<string, "owned" | "shopping">>({});
+  const totalSteps = recipe.instructions.length;
+
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) window.clearInterval(timerIntervalRef.current);
+      if (timerTimeoutRef.current) window.clearTimeout(timerTimeoutRef.current);
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!narrationOn) return;
+    if (currentStep === lastNarratedStepRef.current) return;
+    const step = recipe.instructions[currentStep];
+    if (!step) return;
+    lastNarratedStepRef.current = currentStep;
+    speakReply(`단계 ${currentStep + 1}. ${step}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, narrationOn]);
 
   async function markOwned(name: string) {
     if (perItem[name]) return;
@@ -171,6 +211,162 @@ function RecipeCard({
     } catch (err) {
       setActionError(String(err));
     }
+  }
+
+  async function speakReply(text: string) {
+    if (!text) return;
+    try {
+      const audio = await api.tts(text);
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      const url = URL.createObjectURL(audio);
+      audioUrlRef.current = url;
+      await new Audio(url).play();
+    } catch (err) {
+      setActionError(String(err));
+    }
+  }
+
+  function clearCookingTimer() {
+    if (timerIntervalRef.current) window.clearInterval(timerIntervalRef.current);
+    if (timerTimeoutRef.current) window.clearTimeout(timerTimeoutRef.current);
+    timerIntervalRef.current = null;
+    timerTimeoutRef.current = null;
+    timerEndRef.current = null;
+    setTimerRemaining(0);
+  }
+
+  function startCookingTimer(seconds: number, label?: string) {
+    clearCookingTimer();
+    const duration = Math.max(1, seconds);
+    timerEndRef.current = Date.now() + duration * 1000;
+    setTimerRemaining(duration);
+
+    timerIntervalRef.current = window.setInterval(() => {
+      if (!timerEndRef.current) return;
+      const remaining = Math.max(0, Math.ceil((timerEndRef.current - Date.now()) / 1000));
+      setTimerRemaining(remaining);
+      if (remaining <= 0 && timerIntervalRef.current) {
+        window.clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+    }, 250);
+
+    timerTimeoutRef.current = window.setTimeout(() => {
+      clearCookingTimer();
+      setVoiceHint(`${label || "타이머"}가 끝났습니다.`);
+      speakReply("타이머가 끝났습니다.");
+    }, duration * 1000);
+  }
+
+  function formatTimer(seconds: number) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+
+  function applyVoiceAction(action: string, label?: string, seconds?: number, reply?: string) {
+    if (action === "next") {
+      setCurrentStep((s) => Math.min(s + 1, Math.max(totalSteps - 1, 0)));
+      setVoiceHint(reply || "다음 단계로 이동하겠습니다.");
+      return;
+    }
+    if (action === "previous") {
+      setCurrentStep((s) => Math.max(s - 1, 0));
+      setVoiceHint(reply || "이전 단계로 이동하겠습니다.");
+      return;
+    }
+    if (action === "repeat") {
+      const step = recipe.instructions[currentStep];
+      if (step) speakReply(`단계 ${currentStep + 1}. ${step}`);
+      setVoiceHint(reply || "현재 단계를 다시 안내합니다.");
+      return;
+    }
+    if (action === "show_all") {
+      setShowAllSteps(true);
+      setVoiceHint(reply || "전체 조리법을 펼치겠습니다.");
+      return;
+    }
+    if (action === "ingredients") {
+      setVoiceHint(reply || "필요한 재료를 알려드리겠습니다.");
+      return;
+    }
+    if (action === "timer" && seconds) {
+      startCookingTimer(seconds, label);
+      setVoiceHint(reply || `${label || "타이머"}를 설정하겠습니다.`);
+      return;
+    }
+    if (action === "answer") {
+      setVoiceHint(reply || "");
+      return;
+    }
+    setVoiceHint(reply || "명령을 이해하지 못했습니다. 다시 말씀해 주세요.");
+  }
+
+  async function startRecording() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setActionError("이 브라우저는 음성 녹음을 지원하지 않습니다.");
+      return;
+    }
+
+    setActionError(null);
+    setVoiceHint("");
+    setVoiceText("");
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    streamRef.current = stream;
+    chunksRef.current = [];
+
+    const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+      ? "audio/webm"
+      : "";
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) chunksRef.current.push(event.data);
+    };
+    recorder.onstop = async () => {
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+      const blob = new Blob(chunksRef.current, { type: mimeType || "audio/webm" });
+      if (!blob.size) return;
+
+      setVoiceBusy(true);
+      try {
+        const context: RecipeContext = {
+          name: recipe.name,
+          ingredients: recipe.ingredients,
+          instructions: recipe.instructions,
+          current_step: currentStep,
+        };
+        const result = await api.voiceCommand(blob, context);
+        setVoiceText(result.text);
+        applyVoiceAction(
+          result.command.action,
+          result.command.label,
+          result.command.seconds,
+          result.command.reply,
+        );
+        await speakReply(result.command.reply || "명령을 확인했습니다.");
+      } catch (err) {
+        setActionError(String(err));
+      } finally {
+        setVoiceBusy(false);
+      }
+    };
+
+    mediaRecorderRef.current = recorder;
+    recorder.start();
+    setRecording(true);
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+    setRecording(false);
+  }
+
+  function toggleRecording(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (recording) stopRecording();
+    else startRecording().catch((err) => setActionError(String(err)));
   }
 
   return (
@@ -299,11 +495,126 @@ function RecipeCard({
 
           <div>
             <h3 className="mb-2 text-xs font-semibold text-gray-700">조리법</h3>
-            <ol className="space-y-1.5 text-sm leading-relaxed">
-              {recipe.instructions.map((s, i) => (
-                <li key={i}>{s}</li>
-              ))}
-            </ol>
+            {totalSteps > 0 && (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
+                  <span>단계 {currentStep + 1} / {totalSteps}</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        const next = !narrationOn;
+                        setNarrationOn(next);
+                        if (next) {
+                          lastNarratedStepRef.current = -1; // force narration of current step
+                          // trigger effect by no-op state nudge
+                          setCurrentStep((s) => s);
+                          speakReply(`단계 ${currentStep + 1}. ${recipe.instructions[currentStep]}`);
+                          lastNarratedStepRef.current = currentStep;
+                        }
+                      }}
+                      className={`flex items-center gap-1 rounded-md px-2 py-1 font-medium active:bg-gray-100 ${
+                        narrationOn ? "text-brand-dark" : "text-gray-700"
+                      }`}
+                      title={narrationOn ? "낭독 끄기" : "단계마다 자동 낭독"}
+                    >
+                      {narrationOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                      {narrationOn ? "낭독 ON" : "낭독"}
+                    </button>
+                    <button
+                      onClick={() => setShowAllSteps((v) => !v)}
+                      className="flex items-center gap-1 rounded-md px-2 py-1 font-medium text-gray-700 active:bg-gray-100"
+                    >
+                      <ListOrdered size={14} />
+                      {showAllSteps ? "접기" : "전체"}
+                    </button>
+                  </div>
+                </div>
+
+                <p className="min-h-20 text-sm leading-relaxed text-gray-800">
+                  {recipe.instructions[currentStep]}
+                </p>
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setCurrentStep((s) => Math.max(s - 1, 0))}
+                    disabled={currentStep === 0}
+                    className="flex h-11 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white text-sm font-semibold disabled:opacity-40"
+                  >
+                    <ChevronLeft size={16} /> 이전
+                  </button>
+                  <button
+                    onClick={() => {
+                      const step = recipe.instructions[currentStep];
+                      if (step) speakReply(`단계 ${currentStep + 1}. ${step}`);
+                      setVoiceHint("현재 단계를 다시 안내합니다.");
+                    }}
+                    className="flex h-11 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white text-sm font-semibold"
+                  >
+                    <RotateCcw size={15} /> 다시
+                  </button>
+                  <button
+                    onClick={() => setCurrentStep((s) => Math.min(s + 1, totalSteps - 1))}
+                    disabled={currentStep >= totalSteps - 1}
+                    className="flex h-11 items-center justify-center gap-1 rounded-lg border border-gray-200 bg-white text-sm font-semibold disabled:opacity-40"
+                  >
+                    다음 <ChevronRight size={16} />
+                  </button>
+                </div>
+
+                <button
+                  onClick={toggleRecording}
+                  disabled={voiceBusy}
+                  className={`mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl font-semibold ${
+                    recording
+                      ? "bg-red-500 text-white"
+                      : "bg-gray-900 text-white"
+                  } disabled:opacity-50`}
+                >
+                  {voiceBusy ? (
+                    <><Loader2 className="animate-spin" size={18} /> 음성 분석 중...</>
+                  ) : recording ? (
+                    <><Square size={18} /> 말 끝났어요</>
+                  ) : (
+                    <><Mic size={18} /> 음성 명령</>
+                  )}
+                </button>
+
+                {(voiceText || voiceHint) && (
+                  <div className="mt-3 rounded-lg bg-white p-3 text-xs text-gray-600">
+                    {voiceText && <p>들은 말: {voiceText}</p>}
+                    {voiceHint && <p className="mt-1 font-medium text-gray-800">{voiceHint}</p>}
+                  </div>
+                )}
+
+                {timerRemaining > 0 && (
+                  <div className="mt-3 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <div>
+                      <p className="text-xs font-medium text-amber-700">조리 타이머</p>
+                      <p className="mt-0.5 font-mono text-2xl font-bold text-amber-800">
+                        {formatTimer(timerRemaining)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        clearCookingTimer();
+                        setVoiceHint("타이머를 취소했습니다.");
+                      }}
+                      className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 active:bg-amber-100"
+                    >
+                      취소
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showAllSteps && (
+              <ol className="mt-3 space-y-1.5 text-sm leading-relaxed">
+                {recipe.instructions.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ol>
+            )}
           </div>
         </div>
       )}

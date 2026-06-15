@@ -3,13 +3,13 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 
 export const metadata: Metadata = {
-  title: "Culinary Agent",
+  title: "오셰 (O'CHEF)",
   description: "냉장고 속 재료를 관리하고 AI 레시피를 추천받으세요",
   manifest: "/manifest.json",
-  applicationName: "Culinary Agent",
+  applicationName: "O'CHEF",
   appleWebApp: {
     capable: true,
-    title: "Culinary",
+    title: "O'CHEF",
     statusBarStyle: "default",
   },
   icons: {

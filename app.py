@@ -14,7 +14,7 @@ load_dotenv()
 init_db()
 
 st.set_page_config(
-    page_title="Culinary Agent",
+    page_title="오셰 (O'CHEF)",
     page_icon="🍳",
     layout="wide",
 )

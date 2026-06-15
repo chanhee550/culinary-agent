@@ -67,3 +67,24 @@ export interface ShoppingItem {
   checked: boolean;
   added_at: string;
 }
+
+export type VoiceAction =
+  | "next" | "previous" | "repeat" | "show_all" | "ingredients"
+  | "timer" | "answer" | "unknown";
+
+export interface VoiceCommand {
+  text: string;
+  command: {
+    action: VoiceAction;
+    seconds?: number;
+    label?: string;
+    reply?: string;
+  };
+}
+
+export interface RecipeContext {
+  name: string;
+  ingredients: string[];
+  instructions: string[];
+  current_step: number;
+}

@@ -38,7 +38,7 @@ bubblewrap init --manifest=https://YOUR-DOMAIN.com/manifest.json
 | Domain | `culinary-agent.app` (배포 도메인) | manifest의 host와 일치 |
 | URL of the manifest | (자동) | |
 | Application ID | `com.chanhee550.culinaryagent` | **한 번 정하면 변경 불가** |
-| Application name | `Culinary Agent` | |
+| Application name | `O'CHEF` | |
 | Display mode | `standalone` | |
 | Status bar color | `#10b981` | manifest의 theme_color와 일치 |
 | Splash color | `#ffffff` | manifest의 background_color |
@@ -119,7 +119,8 @@ curl https://YOUR-DOMAIN.com/.well-known/assetlinks.json
 3. 테스터 이메일 추가 (본인 Gmail부터)
 4. 검토 → 출시 시작
 
-자세한 Play Console 절차는 루트 [README.md](../README.md#play-store-배포-절차) 참조.
+프로젝트 전체 실행 구조와 모바일 PWA 설명은 루트 [README.md](../README.md)와
+[mobile/README.md](../mobile/README.md)를 참고하세요.
 
 ## 흔한 오류
 
