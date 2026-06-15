@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Camera, Refrigerator, ChefHat, ShoppingCart } from "lucide-react";
+import {
+  Home, Camera, Refrigerator, ChefHat, ShoppingCart, Users,
+} from "lucide-react";
 
 const TABS = [
   { href: "/", label: "홈", icon: Home },
@@ -10,17 +12,22 @@ const TABS = [
   { href: "/ingredients", label: "재료", icon: Refrigerator },
   { href: "/recipes", label: "레시피", icon: ChefHat },
   { href: "/shopping", label: "장보기", icon: ShoppingCart },
+  { href: "/community", label: "커뮤니티", icon: Users },
 ] as const;
+
+const HIDDEN_PATHS = ["/login"];
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const hidden = HIDDEN_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  if (hidden) return null;
 
   return (
     <nav
       className="fixed bottom-0 left-1/2 z-50 w-full max-w-screen-sm -translate-x-1/2 border-t border-gray-200 bg-white/95 backdrop-blur"
       style={{ paddingBottom: "var(--safe-bottom)" }}
     >
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-6">
         {TABS.map(({ href, label, icon: Icon }) => {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (

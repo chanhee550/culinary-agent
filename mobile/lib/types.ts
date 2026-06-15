@@ -25,6 +25,7 @@ export interface ScanResult {
   confirmed: ConfirmedItem[];
   unknowns: UnknownItem[];
   errors?: string[];
+  quality_warnings?: string[];
 }
 
 export interface Recipe {
@@ -39,8 +40,8 @@ export interface Recipe {
 }
 
 export const CATEGORIES = [
-  "채소", "과일", "육류", "해산물", "유제품",
-  "양념/소스", "곡류/면", "음료", "냉동식품", "기타",
+  "채소", "과일", "육류", "해산물", "유제품", "계란",
+  "양념/소스", "곡류/면", "음료", "냉동식품", "가공식품", "기타",
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];
@@ -87,4 +88,39 @@ export interface RecipeContext {
   ingredients: string[];
   instructions: string[];
   current_step: number;
+}
+
+export interface Post {
+  id: number;
+  user_id: number;
+  author_name: string | null;
+  saved_recipe_id: number | null;
+  saved_recipe_name: string | null;
+  content: string;
+  rating: number;
+  comments_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+  like_count: number;
+  comment_count: number;
+  my_liked: boolean;
+  is_mine: boolean;
+  images: string[];
+}
+
+export interface PostComment {
+  id: number;
+  post_id: number;
+  user_id: number;
+  author_name: string | null;
+  content: string;
+  created_at: string;
+}
+
+export interface ModerationBlockedDetail {
+  detail: "blocked";
+  reason: string;
+  warning_count: number;
+  warning_limit: number;
+  account_deleted: boolean;
 }

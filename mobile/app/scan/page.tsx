@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Image as ImageIcon, Loader2, Trash2 } from "lucide-react";
+import { Camera, CheckCircle2, Image as ImageIcon, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { CATEGORIES } from "@/lib/types";
@@ -17,6 +17,14 @@ interface UnknownDraft {
   category: string;
   quantity: string;
 }
+
+const SCAN_SHOTS = [
+  { title: "전체", detail: "냉장고 전체가 보이게" },
+  { title: "선반", detail: "각 선반을 가까이서" },
+  { title: "도어", detail: "병·소스 라벨이 보이게" },
+  { title: "서랍", detail: "야채칸/냉동칸을 열고" },
+  { title: "라벨", detail: "작은 글자는 근접 사진" },
+];
 
 export default function ScanPage() {
   const router = useRouter();
@@ -118,6 +126,7 @@ export default function ScanPage() {
 
   const totalToSave =
     confirmedSelected.size + unknownDrafts.filter((u) => u.name.trim()).length;
+  const nextShot = SCAN_SHOTS[Math.min(files.length, SCAN_SHOTS.length - 1)];
 
   return (
     <div className="px-5 pt-10 pb-6">
@@ -129,6 +138,51 @@ export default function ScanPage() {
       {/* 사진 업로드 */}
       {!result && (
         <>
+          <section className="mb-5 rounded-2xl border border-emerald-100 bg-white p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-bold">촬영 순서</h2>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  여러 각도를 함께 올리면 작은 재료와 라벨 누락이 줄어듭니다.
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                {Math.min(files.length, SCAN_SHOTS.length)}/{SCAN_SHOTS.length}
+              </span>
+            </div>
+            <ol className="space-y-2">
+              {SCAN_SHOTS.map((shot, i) => {
+                const done = files.length > i;
+                const current = files.length === i;
+                return (
+                  <li
+                    key={shot.title}
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
+                      current ? "bg-emerald-50" : "bg-gray-50"
+                    }`}
+                  >
+                    {done ? (
+                      <CheckCircle2 size={18} className="text-emerald-600" />
+                    ) : (
+                      <span className="grid h-[18px] w-[18px] place-items-center rounded-full border border-gray-300 text-[10px] text-gray-500">
+                        {i + 1}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">{shot.title}</p>
+                      <p className="text-xs text-gray-500">{shot.detail}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+            {files.length < SCAN_SHOTS.length && (
+              <p className="mt-3 text-xs font-medium text-emerald-700">
+                다음 추천: {nextShot.title} 사진
+              </p>
+            )}
+          </section>
+
           <div className="mb-4 grid grid-cols-2 gap-3">
             <button
               onClick={() => {
@@ -161,24 +215,34 @@ export default function ScanPage() {
           />
 
           {previews.length > 0 && (
-            <ul className="mb-4 grid grid-cols-3 gap-2">
-              {previews.map((src, i) => (
-                <li key={i} className="relative aspect-square">
-                  <img
-                    src={src}
-                    alt=""
-                    className="h-full w-full rounded-lg object-cover"
-                  />
-                  <button
-                    onClick={() => removeFile(i)}
-                    className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white"
-                    aria-label="삭제"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              {files.length < 4 && (
+                <div className="mb-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+                  현재 {files.length}장입니다. 선반·도어·서랍 사진을 더하면 인식이 더 안정적입니다.
+                </div>
+              )}
+              <ul className="mb-4 grid grid-cols-3 gap-2">
+                {previews.map((src, i) => (
+                  <li key={i} className="relative aspect-square">
+                    <img
+                      src={src}
+                      alt=""
+                      className="h-full w-full rounded-lg object-cover"
+                    />
+                    <span className="absolute left-1 top-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">
+                      #{i + 1}
+                    </span>
+                    <button
+                      onClick={() => removeFile(i)}
+                      className="absolute right-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-black/60 text-white"
+                      aria-label="삭제"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
 
           <button
@@ -207,6 +271,32 @@ export default function ScanPage() {
       {/* 결과 */}
       {result && (
         <>
+          {result.quality_warnings && result.quality_warnings.length > 0 && (
+            <section className="mb-5 rounded-xl bg-amber-50 p-4">
+              <h2 className="mb-2 text-sm font-semibold text-amber-900">
+                사진 품질 안내
+              </h2>
+              <ul className="space-y-1 text-xs text-amber-800">
+                {result.quality_warnings.map((message, i) => (
+                  <li key={i}>{message}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {result.errors && result.errors.length > 0 && (
+            <section className="mb-5 rounded-xl bg-red-50 p-4">
+              <h2 className="mb-2 text-sm font-semibold text-red-900">
+                분석 오류
+              </h2>
+              <ul className="space-y-1 text-xs text-red-700">
+                {result.errors.map((message, i) => (
+                  <li key={i}>{message}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {result.confirmed.length > 0 && (
             <section className="mb-6">
               <h2 className="mb-3 text-sm font-semibold">

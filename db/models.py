@@ -2,6 +2,16 @@ from dataclasses import dataclass
 
 
 @dataclass
+class User:
+    id: int
+    email: str
+    password_hash: str | None
+    google_sub: str | None
+    display_name: str | None
+    created_at: str
+
+
+@dataclass
 class Ingredient:
     id: int | None
     name: str

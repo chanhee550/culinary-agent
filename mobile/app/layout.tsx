@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import AuthGate from "@/components/AuthGate";
 
 export const metadata: Metadata = {
   title: "오셰 (O'CHEF)",
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ko">
       <body>
         <main className="mx-auto min-h-dvh max-w-screen-sm pb-24">
-          {children}
+          <AuthGate>{children}</AuthGate>
         </main>
         <BottomNav />
       </body>
