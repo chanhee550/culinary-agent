@@ -1,51 +1,49 @@
 """Voice services for the culinary agent.
 
-ASR: faster-whisper (local, CPU/int8) — no API key needed.
+ASR: OpenAI Whisper (github.com/openai/whisper, MIT) — 로컬 실행, API 키 불필요.
+     첫 실행 시 모델 가중치를 자동 다운로드한다. 오디오 디코딩에 ffmpeg 필요.
 TTS: edge-tts (free Microsoft Edge online voices) — Korean Sun-Hi by default.
 
 환경변수:
-    WHISPER_MODEL          (default: small)   tiny/base/small/medium/large-v3
-    WHISPER_DEVICE         (default: cpu)
-    WHISPER_COMPUTE_TYPE   (default: int8)    int8/int8_float16/float16/float32
-    EDGE_TTS_VOICE         (default: ko-KR-SunHiNeural)
+    WHISPER_MODEL   (default: small)   tiny/base/small/medium/large-v3
+    WHISPER_DEVICE  (default: cpu)     cpu/cuda
+    EDGE_TTS_VOICE  (default: ko-KR-SunHiNeural)
 """
-import io
 import os
 import re
 import tempfile
 from functools import lru_cache
 
 import edge_tts
-from faster_whisper import WhisperModel
+import whisper
 
 DEFAULT_WHISPER_MODEL = "small"
 DEFAULT_TTS_VOICE = "ko-KR-SunHiNeural"
 
 
 @lru_cache(maxsize=1)
-def _whisper_model() -> WhisperModel:
+def _whisper_model():
     name = os.getenv("WHISPER_MODEL", DEFAULT_WHISPER_MODEL)
     device = os.getenv("WHISPER_DEVICE", "cpu")
-    compute_type = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
-    return WhisperModel(name, device=device, compute_type=compute_type)
+    return whisper.load_model(name, device=device)
 
 
 def transcribe_audio(audio_bytes: bytes, filename: str = "command.webm") -> str:
     """Transcribe a short cooking command recording (Korean)."""
     suffix = os.path.splitext(filename or "")[1] or ".webm"
-    # faster-whisper decodes via PyAV; needs a real file path for non-WAV containers.
+    # openai-whisper decodes via ffmpeg; needs a real file path for non-WAV containers.
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(audio_bytes)
         tmp_path = tmp.name
     try:
-        segments, _info = _whisper_model().transcribe(
+        result = _whisper_model().transcribe(
             tmp_path,
             language="ko",
             beam_size=1,
-            vad_filter=True,
             condition_on_previous_text=False,
+            fp16=False,  # CPU에선 fp16 미지원 → 경고 방지
         )
-        return " ".join(seg.text for seg in segments).strip()
+        return (result.get("text") or "").strip()
     finally:
         try:
             os.unlink(tmp_path)

@@ -9,7 +9,7 @@ echo   오셰 (O'CHEF) - Mobile
 echo  =================================
 echo.
 
-REM 1) Backend on :8001 (faster-whisper + edge-tts + Claude)
+REM 1) Backend on :8001 (OpenAI Whisper + edge-tts + Claude)
 start "Backend (FastAPI :8001)" cmd /k py -3 -m uvicorn backend.main:app --host 127.0.0.1 --port 8001
 
 REM 2) Mobile PWA dev server on :3000

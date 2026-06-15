@@ -4,9 +4,11 @@ fastapi>=0.115.0,<1.0.0
 uvicorn[standard]>=0.30.0,<1.0.0
 python-multipart>=0.0.9
 # 음성 (ASR/TTS)
+# ASR — OpenAI Whisper (github.com/openai/whisper, MIT). 로컬 실행, API 키 불필요.
+#       torch를 함께 끌어오며 오디오 디코딩에 ffmpeg가 필요합니다.
+openai-whisper>=20231117
+# TTS — edge-tts (Microsoft Edge 무료 음성). API 키 불필요.
 edge-tts>=7.0.0
-# Local ASR — no API key needed. CPU/int8 by default.
-faster-whisper>=1.0.0
 # 인증
 bcrypt>=4.0.0,<5.0.0
 python-jose[cryptography]>=3.3.0,<4.0.0

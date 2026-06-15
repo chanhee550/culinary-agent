@@ -4,7 +4,7 @@
 건드리지 않는다. 따라서 인증을 요구하지 않는다(모바일 tts()도 토큰 없이 호출).
 
 체인:
-    오디오 → transcribe_audio(faster-whisper) → claude_route(Haiku, 실패 시
+    오디오 → transcribe_audio(OpenAI Whisper, 로컬) → claude_route(Haiku, 실패 시
     regex parse_cooking_command 로 fallback) → 액션 → synthesize_reply(edge-tts)
 """
 import json
