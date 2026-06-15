@@ -117,6 +117,7 @@ function RecipeCard({
 }: { recipe: Recipe; open: boolean; onToggle: () => void }) {
   const missing = new Set(recipe.missing || []);
   const subs = recipe.substitutions || {};
+  const amounts = recipe.amounts || {};
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [shoppingAdded, setShoppingAdded] = useState(false);
@@ -443,6 +444,9 @@ function RecipeCard({
                     <span>{hasSub ? "🟡" : isMissing ? (handled ? "✓" : "🔴") : "🟢"}</span>
                     <span className={isMissing && !handled ? "text-gray-500" : ""}>
                       {hasSub ? <s>{ing}</s> : ing}
+                      {amounts[ing] && (
+                        <span className="ml-1 text-xs text-gray-400">· {amounts[ing]}</span>
+                      )}
                       {hasSub && " → 대체 가능"}
                       {isMissing && !hasSub && !handled && " (부족)"}
                       {handled === "owned" && (

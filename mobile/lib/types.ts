@@ -37,6 +37,7 @@ export interface Recipe {
   difficulty: "쉬움" | "보통" | "어려움";
   time: string;
   substitutions?: Record<string, string>;
+  amounts?: Record<string, string>;
 }
 
 export const CATEGORIES = [
